@@ -1,0 +1,7 @@
+logging:
+  level:
+    root: INFO
+    net.alex.game.queue: DEBUG
+
+executor:
+  poolSize: 4
