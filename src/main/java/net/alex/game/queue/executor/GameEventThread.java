@@ -8,6 +8,7 @@ import net.alex.game.queue.exception.EventDeclinedException;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
@@ -59,7 +60,7 @@ public class GameEventThread implements Runnable {
             startupLatch.countDown();
             for (;;) {
                 GameEvent event = fetchEvent();
-                System.out.println(event.getClass());
+                logEvent(event);
                 if (event instanceof UniverseQueueTerminationEvent) {
                     shutdownLatch = ((UniverseQueueTerminationEvent) event).getShutdownLatch();
                     break;
@@ -119,6 +120,15 @@ public class GameEventThread implements Runnable {
 
     private void queueBackup() {
         log.debug("Saving rest of the queue for universe {}", universeId);
+        //todo: implement
         //eventDelayQueue.forEach(e -> System.out.println("Event " + e.getId() + " cancelled in thread " + Thread.currentThread().getId()));
+    }
+
+    private void logEvent(GameEvent event) {
+        log.trace("Event {} with id {} fetched with delay {} ms, fast mode - {}",
+                event.getClass().getSimpleName(),
+                event.getId(),
+                event.getDelay(TimeUnit.MILLISECONDS),
+                fastMode);
     }
 }

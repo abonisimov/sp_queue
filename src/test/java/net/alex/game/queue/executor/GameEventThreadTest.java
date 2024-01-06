@@ -62,15 +62,13 @@ class GameEventThreadTest {
 
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(true, 50, TimeUnit.MILLISECONDS));
-        events.add(new FastModeSwitchEvent(false, 350, TimeUnit.MILLISECONDS));
+        events.add(new FastModeSwitchEvent(true, 150, TimeUnit.MILLISECONDS));
+        events.add(new FastModeSwitchEvent(false, 450, TimeUnit.MILLISECONDS));
         events.addAll(eventIdToDuration.entrySet().stream().
                 map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
         runEventThread(eventRunner, events, waitTime);
 
         checkEventsSequence(eventRunner);
-        System.out.println(eventRunner.getDuration());
-        System.out.println(maxDuration);
         assertTrue(eventRunner.getDuration() < maxDuration);
     }
 
