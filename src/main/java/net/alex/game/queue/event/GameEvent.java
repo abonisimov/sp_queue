@@ -36,4 +36,12 @@ public class GameEvent implements Delayed {
         long diff = startTime - TimeUnit.MILLISECONDS.convert(System.currentTimeMillis(), timeUnit);
         return unit.convert(diff, timeUnit);
     }
+
+    public void changeDelay(long delayDiff, TimeUnit diffTimeUnit) {
+        this.startTime += TimeUnit.MILLISECONDS.convert(delayDiff, diffTimeUnit);
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
 }

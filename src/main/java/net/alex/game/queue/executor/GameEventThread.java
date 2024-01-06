@@ -21,6 +21,8 @@ public class GameEventThread implements Runnable {
     private final ReentrantLock lock = new ReentrantLock();
 
     private boolean fastMode = false;
+    private long fastModeTimestamp = -1L;
+
 
     public GameEventThread(long universeId, CountDownLatch startupLatch) {
         this.universeId = universeId;
@@ -73,6 +75,8 @@ public class GameEventThread implements Runnable {
         } catch (InterruptedException e) {
             log.warn("Universe {} thread was interrupted", universeId);
             log.warn(e.getMessage(), e);
+        } catch (Exception e) {
+            log.warn(e.getMessage(), e);
         } finally {
             cleanUp();
             if (shutdownLatch != null) {
@@ -89,7 +93,8 @@ public class GameEventThread implements Runnable {
             } else {
                 gameEvent = eventDelayQueue.peek();
                 if (gameEvent != null) {
-                    eventDelayQueue.remove(gameEvent);// todo: check
+                    //noinspection ResultOfMethodCallIgnored
+                    eventDelayQueue.remove(gameEvent);
                 } else {
                     gameEvent = eventDelayQueue.take();
                 }
@@ -101,6 +106,13 @@ public class GameEventThread implements Runnable {
     }
 
     private void switchFastMode(FastModeSwitchEvent event) {
+        if (event.isEnable() && fastModeTimestamp == -1) {
+            fastModeTimestamp = event.getStartTime();
+        } else if (!event.isEnable() && fastModeTimestamp != -1) {
+            long diff = event.getStartTime() - fastModeTimestamp;
+            eventDelayQueue.forEach(e -> e.changeDelay(-diff, TimeUnit.MILLISECONDS));
+            fastModeTimestamp = -1;
+        }
         fastMode = event.isEnable();
     }
 

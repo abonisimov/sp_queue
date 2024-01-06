@@ -1,5 +1,6 @@
 package net.alex.game.queue.executor;
 
+import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Slf4j
 class GameEventThreadTest {
     static Map<Long, String> eventIdToDuration = new LinkedHashMap<>();
     static {
@@ -63,7 +65,7 @@ class GameEventThreadTest {
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
         events.add(new FastModeSwitchEvent(true, 150, TimeUnit.MILLISECONDS));
-        events.add(new FastModeSwitchEvent(false, 450, TimeUnit.MILLISECONDS));
+        events.add(new FastModeSwitchEvent(false, 350, TimeUnit.MILLISECONDS));
         events.addAll(eventIdToDuration.entrySet().stream().
                 map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
         runEventThread(eventRunner, events, waitTime);
