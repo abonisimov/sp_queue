@@ -1,6 +1,5 @@
 package net.alex.game.queue.serialize;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -10,10 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
 @SpringBootTest
@@ -31,24 +30,35 @@ class RedisEventSerializerTest {
     }
 
     @Test
-    void testDeserializationGameEvent() throws JsonProcessingException {
+    void testDeserializationGameEvent() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(new GameEvent("123", 500, TimeUnit.MILLISECONDS));
+        String json = mapper.writeValueAsString(GameEvent.builder().
+                id("123").delay(500).timeUnit(TimeUnit.MILLISECONDS).backupTime(900).build());
         log.debug(json);
         assertTrue(StringUtils.isNotBlank(json));
-        GameEvent event = mapper.readValue(json, GameEvent.class);
+        GameEvent event = mapper.reader().readValue(json, GameEvent.class);
         log.debug("{}", event);
         assertNotNull(event);
+        assertEquals("123", event.getId());
+        assertEquals(500, event.getDelay());
+        assertEquals(TimeUnit.MILLISECONDS, event.getTimeUnit());
+        assertEquals(900, event.getBackupTime());
     }
 
     @Test
-    void testDeserializationFastModeSwitchEvent() throws JsonProcessingException {
+    void testDeserializationFastModeSwitchEvent() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(new FastModeSwitchEvent("321", 800, TimeUnit.SECONDS, true));
+        String json = mapper.writer().writeValueAsString(FastModeSwitchEvent.builder().
+                id("321").delay(800).timeUnit(TimeUnit.SECONDS).backupTime(1000).enable(true).build());
         log.debug(json);
         assertTrue(StringUtils.isNotBlank(json));
-        FastModeSwitchEvent event = mapper.readValue(json, FastModeSwitchEvent.class);
+        FastModeSwitchEvent event = mapper.reader().readValue(json, FastModeSwitchEvent.class);
         log.debug("{}", event);
         assertNotNull(event);
+        assertEquals("321", event.getId());
+        assertEquals(800, event.getDelay());
+        assertEquals(TimeUnit.SECONDS, event.getTimeUnit());
+        assertEquals(1000, event.getBackupTime());
+        assertTrue(event.isEnable());
     }
 }

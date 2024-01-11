@@ -92,7 +92,12 @@ public class QueueService {
         try {
             log.debug("Stopping universe {}", universeId);
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            checkAndAddEvent(universeId, new UniverseQueueTerminationEvent(countDownLatch));
+            checkAndAddEvent(universeId, UniverseQueueTerminationEvent.
+                    builder().
+                    id(UUID.randomUUID().toString()).
+                    delay(0).
+                    timeUnit(TimeUnit.MILLISECONDS).
+                    shutdownLatch(countDownLatch).build());
             countDownLatch.await();
             log.debug("Universe {} stopped", universeId);
         } catch (InterruptedException e) {
@@ -103,19 +108,27 @@ public class QueueService {
     }
 
     public void enableFastMode(long universeId, Duration duration) {
-        FastModeSwitchEvent enableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, true);
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), duration.toMillis(), TimeUnit.MILLISECONDS, false);
+        FastModeSwitchEvent enableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build();
+        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).delay(duration.toMillis()).
+                timeUnit(TimeUnit.MILLISECONDS).enable(false).build();
         checkAndAddEvent(universeId, enableEvent);
         checkAndAddEvent(universeId, disableEvent);
     }
 
     public void interruptFastMode(long universeId) {
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, false);
+        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).
+                delay(0).
+                timeUnit(TimeUnit.MILLISECONDS).
+                enable(false).
+                build();
         checkAndAddEvent(universeId, disableEvent);
     }
 
     public void addEvent(long universeId, String eventId, long delay, TimeUnit timeUnit) {
-        checkAndAddEvent(universeId, new GameEvent(eventId, delay, timeUnit));
+        checkAndAddEvent(universeId, GameEvent.builder().id(eventId).delay(delay).timeUnit(timeUnit).build());
     }
 
     public boolean isUniverseRunning(long universeId) {

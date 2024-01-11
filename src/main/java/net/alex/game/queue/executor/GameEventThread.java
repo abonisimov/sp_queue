@@ -7,6 +7,7 @@ import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
 import net.alex.game.queue.serialize.EventSerializer;
 
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
@@ -79,10 +80,7 @@ public class GameEventThread implements Runnable {
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
         } finally {
-            cleanUp();
-            if (shutdownLatch != null) {
-                shutdownLatch.countDown();
-            }
+            cleanUp(shutdownLatch);
         }
     }
 
@@ -117,14 +115,20 @@ public class GameEventThread implements Runnable {
         fastMode = event.isEnable();
     }
 
-    private void cleanUp() {
+    private void cleanUp(CountDownLatch shutdownLatch) {
         lock.lock();
         try {
             eventSerializer.writeEvents(universeId, eventDelayQueue.iterator());
+        } catch (IOException e) {
+            log.warn("Unable to backup queue for universe {} because of the following reason:", universeId);
+            log.warn(e.getMessage(), e);
+        } finally {
             eventDelayQueue.clear();
             log.debug("Universe {} thread finished", universeId);
-        } finally {
             lock.unlock();
+            if (shutdownLatch != null) {
+                shutdownLatch.countDown();
+            }
         }
     }
 

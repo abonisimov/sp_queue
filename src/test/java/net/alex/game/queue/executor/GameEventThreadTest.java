@@ -7,10 +7,10 @@ import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.serialize.EventSerializer;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +34,7 @@ class GameEventThreadTest {
         TestEventRunner eventRunner = new TestEventRunner();
         runEventThread(eventRunner,
                 eventIdToDuration.entrySet().stream().
-                        map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).
+                        map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).
                         collect(Collectors.toList()),
                 waitTime);
 
@@ -50,9 +50,9 @@ class GameEventThreadTest {
 
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, true));
+        events.add(FastModeSwitchEvent.builder().id("f1").delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
+                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
         checkEventsSequence(eventRunner);
@@ -66,10 +66,10 @@ class GameEventThreadTest {
 
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 150, TimeUnit.MILLISECONDS, true));
-        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 350, TimeUnit.MILLISECONDS, false));
+        events.add(FastModeSwitchEvent.builder().id("f1").delay(150).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
+        events.add(FastModeSwitchEvent.builder().id("f0").delay(350).timeUnit(TimeUnit.MILLISECONDS).enable(false).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
+                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
         checkEventsSequence(eventRunner);
@@ -79,11 +79,17 @@ class GameEventThreadTest {
     private void runEventThread(EventRunner eventRunner,
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
-        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventRunner, new DummyEventSerializer());
+        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventRunner, new DisabledEventSerializer());
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
-        thread.addEvent(new UniverseQueueTerminationEvent(new CountDownLatch(1)));
+        thread.addEvent(UniverseQueueTerminationEvent.
+                builder().
+                id(UUID.randomUUID().toString()).
+                delay(0).
+                timeUnit(TimeUnit.MILLISECONDS).
+                shutdownLatch(new CountDownLatch(1)).
+                build());
     }
 
     private void checkEventsSequence(TestEventRunner eventRunner) {
@@ -123,8 +129,10 @@ class GameEventThreadTest {
         }
     }
 
-    private static class DummyEventSerializer implements EventSerializer {
-        public void readEvents(long universeId, Consumer<GameEvent> supplier) {}
-        public void writeEvents(long universeId, Iterator<GameEvent> iterator) {}
+    private static class DisabledEventSerializer extends EventSerializer {
+        public List<String> readFromDataWarehouse(long universeId) throws IOException {
+            return Collections.emptyList();
+        }
+        public void writeToDataWarehouse(long universeId, String event) throws IOException {}
     }
 }
