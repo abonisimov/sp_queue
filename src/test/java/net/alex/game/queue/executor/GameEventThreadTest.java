@@ -4,11 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
+import net.alex.game.queue.serialize.EventSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,7 +50,7 @@ class GameEventThreadTest {
 
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(true, 0, TimeUnit.MILLISECONDS));
+        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, true));
         events.addAll(eventIdToDuration.entrySet().stream().
                 map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
         runEventThread(eventRunner, events, waitTime);
@@ -64,8 +66,8 @@ class GameEventThreadTest {
 
         TestEventRunner eventRunner = new TestEventRunner();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(true, 150, TimeUnit.MILLISECONDS));
-        events.add(new FastModeSwitchEvent(false, 350, TimeUnit.MILLISECONDS));
+        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 150, TimeUnit.MILLISECONDS, true));
+        events.add(new FastModeSwitchEvent(UUID.randomUUID().toString(), 350, TimeUnit.MILLISECONDS, false));
         events.addAll(eventIdToDuration.entrySet().stream().
                 map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
         runEventThread(eventRunner, events, waitTime);
@@ -77,7 +79,7 @@ class GameEventThreadTest {
     private void runEventThread(EventRunner eventRunner,
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
-        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventRunner);
+        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventRunner, new DummyEventSerializer());
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
@@ -121,4 +123,8 @@ class GameEventThreadTest {
         }
     }
 
+    private static class DummyEventSerializer implements EventSerializer {
+        public void readEvents(long universeId, Consumer<GameEvent> supplier) {}
+        public void writeEvents(long universeId, Iterator<GameEvent> iterator) {}
+    }
 }

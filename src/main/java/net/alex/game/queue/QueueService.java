@@ -11,12 +11,15 @@ import net.alex.game.queue.exception.UniverseAlreadyRunningException;
 import net.alex.game.queue.exception.UniverseCountExceededException;
 import net.alex.game.queue.exception.UniverseNotFoundException;
 import net.alex.game.queue.exception.WaitingInterruptedException;
+import net.alex.game.queue.executor.GameEventRunner;
 import net.alex.game.queue.executor.GameEventThread;
 import net.alex.game.queue.executor.GameThreadPoolExecutor;
+import net.alex.game.queue.serialize.RedisEventSerializer;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,9 +31,12 @@ public class QueueService {
     private GameThreadPoolExecutor threadPoolExecutor;
 
     private final ExecutorConfig executorConfig;
+    private final RedisEventSerializer redisEventSerializer;
 
-    public QueueService(ExecutorConfig executorConfig) {
+    public QueueService(ExecutorConfig executorConfig,
+                        RedisEventSerializer redisEventSerializer) {
         this.executorConfig = executorConfig;
+        this.redisEventSerializer = redisEventSerializer;
     }
 
     @PostConstruct
@@ -60,7 +66,8 @@ public class QueueService {
         }
         if (!threadPoolExecutor.isUniversePresent(universeId)) {
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            GameEventThread gameEventThread = new GameEventThread(universeId, countDownLatch);
+            GameEventThread gameEventThread = new GameEventThread(universeId,
+                    countDownLatch, new GameEventRunner(), redisEventSerializer);
             try {
                 log.debug("Starting universe {}", universeId);
                 threadPoolExecutor.execute(gameEventThread);
@@ -96,14 +103,14 @@ public class QueueService {
     }
 
     public void enableFastMode(long universeId, Duration duration) {
-        FastModeSwitchEvent enableEvent = new FastModeSwitchEvent(true, 0, TimeUnit.MILLISECONDS);
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(false, duration.toMillis(), TimeUnit.MILLISECONDS);
+        FastModeSwitchEvent enableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, true);
+        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), duration.toMillis(), TimeUnit.MILLISECONDS, false);
         checkAndAddEvent(universeId, enableEvent);
         checkAndAddEvent(universeId, disableEvent);
     }
 
     public void interruptFastMode(long universeId) {
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(false, 0, TimeUnit.MILLISECONDS);
+        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(UUID.randomUUID().toString(), 0, TimeUnit.MILLISECONDS, false);
         checkAndAddEvent(universeId, disableEvent);
     }
 
@@ -115,7 +122,7 @@ public class QueueService {
         return threadPoolExecutor.isUniversePresent(universeId);
     }
 
-    public Set<Long> getRunningUniversesSet() {
+    public Set<Long> getRunningUniverses() {
         return threadPoolExecutor.getUniverseSet();
     }
 

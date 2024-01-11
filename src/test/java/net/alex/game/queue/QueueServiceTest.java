@@ -33,11 +33,11 @@ class QueueServiceTest {
 
         universeIds.forEach(universeId -> queueService.startUniverse(universeId));
         universeIds.forEach(universeId -> assertTrue(queueService.isUniverseRunning(universeId)));
-        assertEquals(universeIds, queueService.getRunningUniversesSet());
+        assertEquals(universeIds, queueService.getRunningUniverses());
 
         universeIds.forEach(universeId -> queueService.stopUniverse(universeId));
         universeIds.forEach(universeId -> assertFalse(queueService.isUniverseRunning(universeId)));
-        assertTrue(queueService.getRunningUniversesSet().isEmpty());
+        assertTrue(queueService.getRunningUniverses().isEmpty());
     }
 
     @Test

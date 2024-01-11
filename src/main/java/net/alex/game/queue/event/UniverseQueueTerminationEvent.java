@@ -4,7 +4,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class UniverseQueueTerminationEvent extends GameEvent {
+public class UniverseQueueTerminationEvent extends GameEvent implements SystemEvent {
 
     private final CountDownLatch shutdownLatch;
 

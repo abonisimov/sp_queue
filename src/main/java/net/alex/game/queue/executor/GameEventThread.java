@@ -5,6 +5,7 @@ import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
+import net.alex.game.queue.serialize.EventSerializer;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
@@ -15,6 +16,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class GameEventThread implements Runnable {
 
     private final EventRunner eventRunner;
+    private final EventSerializer eventSerializer;
+
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
     private final long universeId;
     private final CountDownLatch startupLatch;
@@ -23,17 +26,14 @@ public class GameEventThread implements Runnable {
     private boolean fastMode = false;
     private long fastModeTimestamp = -1L;
 
-
-    public GameEventThread(long universeId, CountDownLatch startupLatch) {
-        this.universeId = universeId;
-        this.startupLatch = startupLatch;
-        this.eventRunner = new GameEventRunner();
-    }
-
-    public GameEventThread(long universeId, CountDownLatch startupLatch, EventRunner eventRunner) {
+    public GameEventThread(long universeId,
+                           CountDownLatch startupLatch,
+                           EventRunner eventRunner,
+                           EventSerializer eventSerializer) {
         this.universeId = universeId;
         this.startupLatch = startupLatch;
         this.eventRunner = eventRunner;
+        this.eventSerializer = eventSerializer;
     }
 
     public long getUniverseId() {
@@ -60,6 +60,7 @@ public class GameEventThread implements Runnable {
         CountDownLatch shutdownLatch = null;
         try {
             startupLatch.countDown();
+            eventSerializer.readEvents(universeId, this::addEvent);
             for (;;) {
                 GameEvent event = fetchEvent();
                 logEvent(event);
@@ -119,21 +120,12 @@ public class GameEventThread implements Runnable {
     private void cleanUp() {
         lock.lock();
         try {
-            if (eventDelayQueue.isEmpty()) {
-                log.debug("Queue is empty, nothing to backup");
-            } else {
-                queueBackup();
-            }
+            eventSerializer.writeEvents(universeId, eventDelayQueue.iterator());
+            eventDelayQueue.clear();
             log.debug("Universe {} thread finished", universeId);
         } finally {
             lock.unlock();
         }
-    }
-
-    private void queueBackup() {
-        log.debug("Saving rest of the queue for universe {}", universeId);
-        //todo: implement
-        //eventDelayQueue.forEach(e -> System.out.println("Event " + e.getId() + " cancelled in thread " + Thread.currentThread().getId()));
     }
 
     private void logEvent(GameEvent event) {
