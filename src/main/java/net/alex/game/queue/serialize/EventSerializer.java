@@ -6,6 +6,7 @@ import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.SystemEvent;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,7 @@ public abstract class EventSerializer {
     public void writeEvents(long universeId, Iterator<GameEvent> iterator) throws IOException {
         log.debug("Saving to redis queue for universe {}", universeId);
         long currentTimeMillis = System.currentTimeMillis();
+        List<String> eventJson = new ArrayList<>();
         while (iterator.hasNext()) {
             GameEvent event = iterator.next();
             if (event instanceof SystemEvent) {
@@ -37,8 +39,9 @@ public abstract class EventSerializer {
             }
             event.setBackupTime(currentTimeMillis);
             String json = MAPPER.writer().writeValueAsString(event);
-            writeToDataWarehouse(universeId, json);
+            eventJson.add(json);
         }
+        writeToDataWarehouse(universeId, eventJson);
     }
 
     private Class<GameEvent> getEventClass() {
@@ -51,5 +54,5 @@ public abstract class EventSerializer {
     }
 
     public abstract List<String> readFromDataWarehouse(long universeId) throws IOException;
-    public abstract void writeToDataWarehouse(long universeId, String event) throws IOException;
+    public abstract void writeToDataWarehouse(long universeId, List<String> events) throws IOException;
 }

@@ -5,3 +5,16 @@ logging:
 
 executor:
   poolSize: 4
+
+spring:
+  data:
+    redis:
+      host: 192.168.150.123
+      port: 6379
+      password: abcdef
+      database: 2
+      timeout: 30000ms
+      lettuce:
+        pool:
+          max-active: -1
+          max-idle: 500

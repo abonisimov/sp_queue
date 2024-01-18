@@ -133,6 +133,6 @@ class GameEventThreadTest {
         public List<String> readFromDataWarehouse(long universeId) throws IOException {
             return Collections.emptyList();
         }
-        public void writeToDataWarehouse(long universeId, String event) throws IOException {}
+        public void writeToDataWarehouse(long universeId, List<String> events) throws IOException {}
     }
 }

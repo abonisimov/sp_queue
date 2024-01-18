@@ -5,3 +5,10 @@ logging:
 
 executor:
   poolSize: 99
+
+spring:
+  data:
+    redis:
+      database:
+      host:
+      port:

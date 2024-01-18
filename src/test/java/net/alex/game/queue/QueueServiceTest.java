@@ -58,9 +58,7 @@ class QueueServiceTest {
     @Test
     @DirtiesContext
     void testUniverseAlreadyRunningException() {
-        assertThrows(UniverseAlreadyRunningException.class, () -> {
-            queueService.startUniverse(1);
-            queueService.startUniverse(1);
-        });
+        queueService.startUniverse(1);
+        assertThrows(UniverseAlreadyRunningException.class, () -> queueService.startUniverse(1));
     }
 }

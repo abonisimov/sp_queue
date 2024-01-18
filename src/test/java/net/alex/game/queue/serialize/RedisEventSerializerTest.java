@@ -3,11 +3,19 @@ package net.alex.game.queue.serialize;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
+import net.alex.game.queue.QueueApplication;
+import net.alex.game.queue.RedisProperties;
+import net.alex.game.queue.TestRedisConfiguration;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -15,7 +23,9 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
-@SpringBootTest
+//@ExtendWith(SpringExtension.class)
+//@ContextConfiguration(classes = {QueueApplication.class, TestRedisConfiguration.class})
+@SpringBootTest(classes = TestRedisConfiguration.class)
 class RedisEventSerializerTest {
 
     @Autowired
