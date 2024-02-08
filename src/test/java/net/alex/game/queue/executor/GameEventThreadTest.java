@@ -4,8 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
+import net.alex.game.queue.serialize.EventSerializer;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -24,19 +26,44 @@ class GameEventThreadTest {
         eventIdToDuration.put(300L, "4");
     }
 
+    static Map<Long, String> eventIdToDurationSeconds = new LinkedHashMap<>();
+    static {
+        eventIdToDurationSeconds.put(1L, "1");
+        eventIdToDurationSeconds.put(0L, "2");
+        eventIdToDurationSeconds.put(3L, "3");
+        eventIdToDurationSeconds.put(2L, "4");
+    }
+
     @Test
     void testQueueInStandardMode() throws InterruptedException {
         long maxDuration = eventIdToDuration.keySet().stream().max(Long::compareTo).orElseThrow();
-        long waitTime = maxDuration + 100;
+        long waitTime = maxDuration + 500;
 
-        TestEventRunner eventRunner = new TestEventRunner();
+        TestEventExecutor eventRunner = new TestEventExecutor();
         runEventThread(eventRunner,
                 eventIdToDuration.entrySet().stream().
-                        map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).
+                        map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).
                         collect(Collectors.toList()),
                 waitTime);
 
-        checkEventsSequence(eventRunner);
+        checkEventsSequence(eventRunner, eventIdToDuration);
+        assertTrue(eventRunner.getDuration() >= maxDuration);
+        assertTrue(eventRunner.getDuration() <= waitTime);
+    }
+
+    @Test
+    void testQueueInStandardModeSeconds() throws InterruptedException {
+        long maxDuration = eventIdToDurationSeconds.keySet().stream().max(Long::compareTo).orElseThrow();
+        long waitTime = maxDuration * 1000 + 500;
+
+        TestEventExecutor eventRunner = new TestEventExecutor();
+        runEventThread(eventRunner,
+                eventIdToDurationSeconds.entrySet().stream().
+                        map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.SECONDS).build()).
+                        collect(Collectors.toList()),
+                waitTime);
+
+        checkEventsSequence(eventRunner, eventIdToDurationSeconds);
         assertTrue(eventRunner.getDuration() >= maxDuration);
         assertTrue(eventRunner.getDuration() <= waitTime);
     }
@@ -44,59 +71,65 @@ class GameEventThreadTest {
     @Test
     void testQueueInFastMode() throws InterruptedException {
         long maxDuration = eventIdToDuration.keySet().stream().max(Long::compareTo).orElseThrow();
-        long waitTime = maxDuration + 100;
+        long waitTime = maxDuration + 500;
 
-        TestEventRunner eventRunner = new TestEventRunner();
+        TestEventExecutor eventRunner = new TestEventExecutor();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(true, 0, TimeUnit.MILLISECONDS));
+        events.add(FastModeSwitchEvent.builder().id("f1").delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
+                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
-        checkEventsSequence(eventRunner);
+        checkEventsSequence(eventRunner, eventIdToDuration);
         assertTrue(eventRunner.getDuration() < maxDuration);
     }
 
     @Test
     void testQueueInMixedMode() throws InterruptedException {
         long maxDuration = eventIdToDuration.keySet().stream().max(Long::compareTo).orElseThrow();
-        long waitTime = maxDuration + 100;
+        long waitTime = maxDuration + 500;
 
-        TestEventRunner eventRunner = new TestEventRunner();
+        TestEventExecutor eventRunner = new TestEventExecutor();
         List<GameEvent> events = new ArrayList<>();
-        events.add(new FastModeSwitchEvent(true, 150, TimeUnit.MILLISECONDS));
-        events.add(new FastModeSwitchEvent(false, 350, TimeUnit.MILLISECONDS));
+        events.add(FastModeSwitchEvent.builder().id("f1").delay(150).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
+        events.add(FastModeSwitchEvent.builder().id("f0").delay(350).timeUnit(TimeUnit.MILLISECONDS).enable(false).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> new GameEvent(e.getValue(), e.getKey(), TimeUnit.MILLISECONDS)).toList());
+                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
-        checkEventsSequence(eventRunner);
+        checkEventsSequence(eventRunner, eventIdToDuration);
         assertTrue(eventRunner.getDuration() < maxDuration);
     }
 
-    private void runEventThread(EventRunner eventRunner,
+    private void runEventThread(EventExecutor eventExecutor,
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
-        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventRunner);
+        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventExecutor, new DisabledEventSerializer());
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
-        thread.addEvent(new UniverseQueueTerminationEvent(new CountDownLatch(1)));
+        thread.addEvent(UniverseQueueTerminationEvent.
+                builder().
+                id(UUID.randomUUID().toString()).
+                delay(0).
+                timeUnit(TimeUnit.MILLISECONDS).
+                shutdownLatch(new CountDownLatch(1)).
+                build());
     }
 
-    private void checkEventsSequence(TestEventRunner eventRunner) {
-        List<String> expectedEventSequence = eventIdToDuration.entrySet().stream().
+    private void checkEventsSequence(TestEventExecutor eventRunner, Map<Long, String> eventToDurationMap) {
+        List<String> expectedEventSequence = eventToDurationMap.entrySet().stream().
                 sorted(Comparator.comparingLong(Map.Entry::getKey)).map(Map.Entry::getValue).toList();
         assertEquals(expectedEventSequence, eventRunner.getEventSequence());
     }
 
-    static class TestEventRunner implements EventRunner {
+    static class TestEventExecutor implements EventExecutor {
         private final List<String> eventSequence = new ArrayList<>();
         private final List<Long> timeStamps = new ArrayList<>();
 
         @Override
-        public void executeEvent(long universeId, String eventId) {
-            eventSequence.add(eventId);
+        public void executeEvent(long universeId, GameEvent gameEvent) {
+            eventSequence.add(gameEvent.getId());
             timeStamps.add(System.currentTimeMillis());
         }
 
@@ -121,4 +154,10 @@ class GameEventThreadTest {
         }
     }
 
+    private static class DisabledEventSerializer extends EventSerializer {
+        public List<String> readFromDataWarehouse(long universeId) {
+            return Collections.emptyList();
+        }
+        public void writeToDataWarehouse(long universeId, List<String> events) {}
+    }
 }

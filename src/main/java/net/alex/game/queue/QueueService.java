@@ -11,12 +11,15 @@ import net.alex.game.queue.exception.UniverseAlreadyRunningException;
 import net.alex.game.queue.exception.UniverseCountExceededException;
 import net.alex.game.queue.exception.UniverseNotFoundException;
 import net.alex.game.queue.exception.WaitingInterruptedException;
+import net.alex.game.queue.executor.GameEventExecutor;
 import net.alex.game.queue.executor.GameEventThread;
 import net.alex.game.queue.executor.GameThreadPoolExecutor;
+import net.alex.game.queue.serialize.InMemoryEventSerializer;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,9 +31,12 @@ public class QueueService {
     private GameThreadPoolExecutor threadPoolExecutor;
 
     private final ExecutorConfig executorConfig;
+    private final InMemoryEventSerializer inMemoryEventSerializer;
 
-    public QueueService(ExecutorConfig executorConfig) {
+    public QueueService(ExecutorConfig executorConfig,
+                        InMemoryEventSerializer inMemoryEventSerializer) {
         this.executorConfig = executorConfig;
+        this.inMemoryEventSerializer = inMemoryEventSerializer;
     }
 
     @PostConstruct
@@ -60,7 +66,8 @@ public class QueueService {
         }
         if (!threadPoolExecutor.isUniversePresent(universeId)) {
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            GameEventThread gameEventThread = new GameEventThread(universeId, countDownLatch);
+            GameEventThread gameEventThread = new GameEventThread(universeId,
+                    countDownLatch, new GameEventExecutor(), inMemoryEventSerializer);
             try {
                 log.debug("Starting universe {}", universeId);
                 threadPoolExecutor.execute(gameEventThread);
@@ -73,6 +80,7 @@ public class QueueService {
             } catch (InterruptedException e) {
                 log.warn("Waiting for universe {} to start was interrupted", universeId);
                 log.warn(e.getMessage(), e);
+                Thread.currentThread().interrupt();
                 throw new WaitingInterruptedException();
             }
         } else {
@@ -85,37 +93,51 @@ public class QueueService {
         try {
             log.debug("Stopping universe {}", universeId);
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            checkAndAddEvent(universeId, new UniverseQueueTerminationEvent(countDownLatch));
+            checkAndAddEvent(universeId, UniverseQueueTerminationEvent.
+                    builder().
+                    id(UUID.randomUUID().toString()).
+                    delay(0).
+                    timeUnit(TimeUnit.MILLISECONDS).
+                    shutdownLatch(countDownLatch).build());
             countDownLatch.await();
             log.debug("Universe {} stopped", universeId);
         } catch (InterruptedException e) {
             log.warn("Waiting for universe {} to stop was interrupted", universeId);
             log.warn(e.getMessage(), e);
+            Thread.currentThread().interrupt();
             throw new WaitingInterruptedException();
         }
     }
 
     public void enableFastMode(long universeId, Duration duration) {
-        FastModeSwitchEvent enableEvent = new FastModeSwitchEvent(true, 0, TimeUnit.MILLISECONDS);
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(false, duration.toMillis(), TimeUnit.MILLISECONDS);
+        FastModeSwitchEvent enableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build();
+        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).delay(duration.toMillis()).
+                timeUnit(TimeUnit.MILLISECONDS).enable(false).build();
         checkAndAddEvent(universeId, enableEvent);
         checkAndAddEvent(universeId, disableEvent);
     }
 
     public void interruptFastMode(long universeId) {
-        FastModeSwitchEvent disableEvent = new FastModeSwitchEvent(false, 0, TimeUnit.MILLISECONDS);
+        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+                id(UUID.randomUUID().toString()).
+                delay(0).
+                timeUnit(TimeUnit.MILLISECONDS).
+                enable(false).
+                build();
         checkAndAddEvent(universeId, disableEvent);
     }
 
     public void addEvent(long universeId, String eventId, long delay, TimeUnit timeUnit) {
-        checkAndAddEvent(universeId, new GameEvent(eventId, delay, timeUnit));
+        checkAndAddEvent(universeId, GameEvent.builder().id(eventId).delay(delay).timeUnit(timeUnit).build());
     }
 
     public boolean isUniverseRunning(long universeId) {
         return threadPoolExecutor.isUniversePresent(universeId);
     }
 
-    public Set<Long> getRunningUniversesSet() {
+    public Set<Long> getRunningUniverses() {
         return threadPoolExecutor.getUniverseSet();
     }
 

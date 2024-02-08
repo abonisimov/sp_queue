@@ -5,7 +5,9 @@ import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
+import net.alex.game.queue.serialize.EventSerializer;
 
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +16,9 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class GameEventThread implements Runnable {
 
-    private final EventRunner eventRunner;
+    private final EventExecutor eventExecutor;
+    private final EventSerializer eventSerializer;
+
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
     private final long universeId;
     private final CountDownLatch startupLatch;
@@ -23,17 +27,14 @@ public class GameEventThread implements Runnable {
     private boolean fastMode = false;
     private long fastModeTimestamp = -1L;
 
-
-    public GameEventThread(long universeId, CountDownLatch startupLatch) {
+    public GameEventThread(long universeId,
+                           CountDownLatch startupLatch,
+                           EventExecutor eventExecutor,
+                           EventSerializer eventSerializer) {
         this.universeId = universeId;
         this.startupLatch = startupLatch;
-        this.eventRunner = new GameEventRunner();
-    }
-
-    public GameEventThread(long universeId, CountDownLatch startupLatch, EventRunner eventRunner) {
-        this.universeId = universeId;
-        this.startupLatch = startupLatch;
-        this.eventRunner = eventRunner;
+        this.eventExecutor = eventExecutor;
+        this.eventSerializer = eventSerializer;
     }
 
     public long getUniverseId() {
@@ -60,6 +61,7 @@ public class GameEventThread implements Runnable {
         CountDownLatch shutdownLatch = null;
         try {
             startupLatch.countDown();
+            eventSerializer.readEvents(universeId, this::addEvent);
             for (;;) {
                 GameEvent event = fetchEvent();
                 logEvent(event);
@@ -69,19 +71,17 @@ public class GameEventThread implements Runnable {
                 } else if (event instanceof FastModeSwitchEvent) {
                     switchFastMode((FastModeSwitchEvent)event);
                 } else {
-                    eventRunner.executeEvent(universeId, event.getId());
+                    eventExecutor.executeEvent(universeId, event);
                 }
             }
         } catch (InterruptedException e) {
             log.warn("Universe {} thread was interrupted", universeId);
             log.warn(e.getMessage(), e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
         } finally {
-            cleanUp();
-            if (shutdownLatch != null) {
-                shutdownLatch.countDown();
-            }
+            cleanUp(shutdownLatch);
         }
     }
 
@@ -116,24 +116,21 @@ public class GameEventThread implements Runnable {
         fastMode = event.isEnable();
     }
 
-    private void cleanUp() {
+    private void cleanUp(CountDownLatch shutdownLatch) {
         lock.lock();
         try {
-            if (eventDelayQueue.isEmpty()) {
-                log.debug("Queue is empty, nothing to backup");
-            } else {
-                queueBackup();
-            }
-            log.debug("Universe {} thread finished", universeId);
+            eventSerializer.writeEvents(universeId, eventDelayQueue.iterator());
+        } catch (IOException e) {
+            log.warn("Unable to backup queue for universe {} because of the following reason:", universeId);
+            log.warn(e.getMessage(), e);
         } finally {
+            eventDelayQueue.clear();
+            log.debug("Universe {} thread finished", universeId);
             lock.unlock();
+            if (shutdownLatch != null) {
+                shutdownLatch.countDown();
+            }
         }
-    }
-
-    private void queueBackup() {
-        log.debug("Saving rest of the queue for universe {}", universeId);
-        //todo: implement
-        //eventDelayQueue.forEach(e -> System.out.println("Event " + e.getId() + " cancelled in thread " + Thread.currentThread().getId()));
     }
 
     private void logEvent(GameEvent event) {

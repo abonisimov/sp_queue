@@ -1,29 +1,31 @@
 package net.alex.game.queue.event;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
+import lombok.extern.jackson.Jacksonized;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @ToString
+@Getter
+@SuperBuilder
+@Jacksonized
 public class GameEvent implements Delayed {
     private final String id;
     private final long delay;
-    private long startTime;
     private final TimeUnit timeUnit;
-
-    public GameEvent(String id, long delay, TimeUnit timeUnit) {
-        this.id = id;
-        this.delay = delay;
-        this.timeUnit = timeUnit;
-    }
+    private long startTime;
+    @Setter
+    private long backupTime;
+    private String eventClass;
 
     public void init() {
-        this.startTime = TimeUnit.MILLISECONDS.convert(System.currentTimeMillis(), timeUnit) + delay;
-    }
-
-    public String getId() {
-        return id;
+        this.startTime = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(delay, timeUnit);
     }
 
     @Override
@@ -33,15 +35,15 @@ public class GameEvent implements Delayed {
 
     @Override
     public long getDelay(TimeUnit unit) {
-        long diff = startTime - TimeUnit.MILLISECONDS.convert(System.currentTimeMillis(), timeUnit);
-        return unit.convert(diff, timeUnit);
+        long diff = startTime - System.currentTimeMillis();
+        return unit.convert(diff, TimeUnit.MILLISECONDS);
     }
 
     public void changeDelay(long delayDiff, TimeUnit diffTimeUnit) {
         this.startTime += TimeUnit.MILLISECONDS.convert(delayDiff, diffTimeUnit);
     }
 
-    public long getStartTime() {
-        return startTime;
+    public String getEventClass() {
+        return this.getClass().getName();
     }
 }
