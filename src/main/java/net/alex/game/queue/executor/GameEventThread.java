@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class GameEventThread implements Runnable {
 
-    private final EventRunner eventRunner;
+    private final EventExecutor eventExecutor;
     private final EventSerializer eventSerializer;
 
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
@@ -29,11 +29,11 @@ public class GameEventThread implements Runnable {
 
     public GameEventThread(long universeId,
                            CountDownLatch startupLatch,
-                           EventRunner eventRunner,
+                           EventExecutor eventExecutor,
                            EventSerializer eventSerializer) {
         this.universeId = universeId;
         this.startupLatch = startupLatch;
-        this.eventRunner = eventRunner;
+        this.eventExecutor = eventExecutor;
         this.eventSerializer = eventSerializer;
     }
 
@@ -71,12 +71,13 @@ public class GameEventThread implements Runnable {
                 } else if (event instanceof FastModeSwitchEvent) {
                     switchFastMode((FastModeSwitchEvent)event);
                 } else {
-                    eventRunner.executeEvent(universeId, event.getId());
+                    eventExecutor.executeEvent(universeId, event);
                 }
             }
         } catch (InterruptedException e) {
             log.warn("Universe {} thread was interrupted", universeId);
             log.warn(e.getMessage(), e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
         } finally {

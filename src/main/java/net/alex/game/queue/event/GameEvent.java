@@ -5,10 +5,12 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.jackson.Jacksonized;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @ToString
 @Getter
 @SuperBuilder
@@ -20,9 +22,10 @@ public class GameEvent implements Delayed {
     private long startTime;
     @Setter
     private long backupTime;
+    private String eventClass;
 
     public void init() {
-        this.startTime = TimeUnit.MILLISECONDS.convert(System.currentTimeMillis(), timeUnit) + delay;
+        this.startTime = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(delay, timeUnit);
     }
 
     @Override
@@ -32,11 +35,15 @@ public class GameEvent implements Delayed {
 
     @Override
     public long getDelay(TimeUnit unit) {
-        long diff = startTime - TimeUnit.MILLISECONDS.convert(System.currentTimeMillis(), timeUnit);
-        return unit.convert(diff, timeUnit);
+        long diff = startTime - System.currentTimeMillis();
+        return unit.convert(diff, TimeUnit.MILLISECONDS);
     }
 
     public void changeDelay(long delayDiff, TimeUnit diffTimeUnit) {
         this.startTime += TimeUnit.MILLISECONDS.convert(delayDiff, diffTimeUnit);
+    }
+
+    public String getEventClass() {
+        return this.getClass().getName();
     }
 }

@@ -11,10 +11,10 @@ import net.alex.game.queue.exception.UniverseAlreadyRunningException;
 import net.alex.game.queue.exception.UniverseCountExceededException;
 import net.alex.game.queue.exception.UniverseNotFoundException;
 import net.alex.game.queue.exception.WaitingInterruptedException;
-import net.alex.game.queue.executor.GameEventRunner;
+import net.alex.game.queue.executor.GameEventExecutor;
 import net.alex.game.queue.executor.GameEventThread;
 import net.alex.game.queue.executor.GameThreadPoolExecutor;
-import net.alex.game.queue.serialize.RedisEventSerializer;
+import net.alex.game.queue.serialize.InMemoryEventSerializer;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -31,12 +31,12 @@ public class QueueService {
     private GameThreadPoolExecutor threadPoolExecutor;
 
     private final ExecutorConfig executorConfig;
-    private final RedisEventSerializer redisEventSerializer;
+    private final InMemoryEventSerializer inMemoryEventSerializer;
 
     public QueueService(ExecutorConfig executorConfig,
-                        RedisEventSerializer redisEventSerializer) {
+                        InMemoryEventSerializer inMemoryEventSerializer) {
         this.executorConfig = executorConfig;
-        this.redisEventSerializer = redisEventSerializer;
+        this.inMemoryEventSerializer = inMemoryEventSerializer;
     }
 
     @PostConstruct
@@ -67,7 +67,7 @@ public class QueueService {
         if (!threadPoolExecutor.isUniversePresent(universeId)) {
             CountDownLatch countDownLatch = new CountDownLatch(1);
             GameEventThread gameEventThread = new GameEventThread(universeId,
-                    countDownLatch, new GameEventRunner(), redisEventSerializer);
+                    countDownLatch, new GameEventExecutor(), inMemoryEventSerializer);
             try {
                 log.debug("Starting universe {}", universeId);
                 threadPoolExecutor.execute(gameEventThread);
@@ -80,6 +80,7 @@ public class QueueService {
             } catch (InterruptedException e) {
                 log.warn("Waiting for universe {} to start was interrupted", universeId);
                 log.warn(e.getMessage(), e);
+                Thread.currentThread().interrupt();
                 throw new WaitingInterruptedException();
             }
         } else {
@@ -103,6 +104,7 @@ public class QueueService {
         } catch (InterruptedException e) {
             log.warn("Waiting for universe {} to stop was interrupted", universeId);
             log.warn(e.getMessage(), e);
+            Thread.currentThread().interrupt();
             throw new WaitingInterruptedException();
         }
     }
