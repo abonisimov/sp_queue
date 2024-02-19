@@ -16,13 +16,14 @@ class GameEventTest {
     @Test
     void testDeserializationGameEvent() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writeValueAsString(GameEvent.builder().
+        String json = mapper.writeValueAsString(GameEvent.builder().universeId("1").
                 id("123").delay(500).timeUnit(TimeUnit.MILLISECONDS).backupTime(900).build());
         log.debug(json);
         assertTrue(StringUtils.isNotBlank(json));
         GameEvent event = mapper.reader().readValue(json, GameEvent.class);
         log.debug("{}", event);
         assertNotNull(event);
+        assertEquals("1", event.getUniverseId());
         assertEquals("123", event.getId());
         assertEquals(500, event.getDelay());
         assertEquals(TimeUnit.MILLISECONDS, event.getTimeUnit());

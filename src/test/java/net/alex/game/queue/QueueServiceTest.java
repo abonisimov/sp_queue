@@ -28,7 +28,9 @@ class QueueServiceTest {
     @Test
     @DirtiesContext
     void testStartStop() {
-        Set<Long> universeIds = Stream.iterate(1L, n -> n + 1).limit(executorConfig.poolSize()).
+        Set<String> universeIds = Stream.iterate(1L, n -> n + 1).
+                limit(executorConfig.poolSize()).
+                map(String::valueOf).
                 collect(Collectors.toUnmodifiableSet());
 
         universeIds.forEach(universeId -> queueService.startUniverse(universeId));
@@ -44,7 +46,9 @@ class QueueServiceTest {
     @DirtiesContext
     void testUniverseCountExceededException() {
         assertThrows(UniverseCountExceededException.class, () ->
-                Stream.iterate(1L, n -> n + 1).limit(executorConfig.poolSize() + 1).
+                Stream.iterate(1L, n -> n + 1).
+                        limit(executorConfig.poolSize() + 1).
+                        map(String::valueOf).
                         forEach(universeId -> queueService.startUniverse(universeId)));
     }
 
@@ -52,15 +56,15 @@ class QueueServiceTest {
     @DirtiesContext
     void testUniverseNotFoundException() {
         assertThrows(UniverseNotFoundException.class, () ->
-                queueService.addEvent(-1, "1", 0, TimeUnit.MILLISECONDS));
+                queueService.addEvent("-1", "1", 0, TimeUnit.MILLISECONDS));
     }
 
     @Test
     @DirtiesContext
     void testUniverseAlreadyRunningException() {
         assertThrows(UniverseAlreadyRunningException.class, () -> {
-            queueService.startUniverse(1);
-            queueService.startUniverse(1);
+            queueService.startUniverse("1");
+            queueService.startUniverse("1");
         });
     }
 }

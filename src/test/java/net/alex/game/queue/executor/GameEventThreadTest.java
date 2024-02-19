@@ -7,7 +7,6 @@ import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.serialize.EventSerializer;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +41,7 @@ class GameEventThreadTest {
         TestEventExecutor eventRunner = new TestEventExecutor();
         runEventThread(eventRunner,
                 eventIdToDuration.entrySet().stream().
-                        map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).
+                        map(e -> GameEvent.builder().universeId("1").id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).
                         collect(Collectors.toList()),
                 waitTime);
 
@@ -59,7 +58,7 @@ class GameEventThreadTest {
         TestEventExecutor eventRunner = new TestEventExecutor();
         runEventThread(eventRunner,
                 eventIdToDurationSeconds.entrySet().stream().
-                        map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.SECONDS).build()).
+                        map(e -> GameEvent.builder().universeId("1").id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.SECONDS).build()).
                         collect(Collectors.toList()),
                 waitTime);
 
@@ -75,9 +74,9 @@ class GameEventThreadTest {
 
         TestEventExecutor eventRunner = new TestEventExecutor();
         List<GameEvent> events = new ArrayList<>();
-        events.add(FastModeSwitchEvent.builder().id("f1").delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
+        events.add(FastModeSwitchEvent.builder().universeId("1").id("f1").delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
+                map(e -> GameEvent.builder().universeId("1").id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
         checkEventsSequence(eventRunner, eventIdToDuration);
@@ -91,10 +90,10 @@ class GameEventThreadTest {
 
         TestEventExecutor eventRunner = new TestEventExecutor();
         List<GameEvent> events = new ArrayList<>();
-        events.add(FastModeSwitchEvent.builder().id("f1").delay(150).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
-        events.add(FastModeSwitchEvent.builder().id("f0").delay(350).timeUnit(TimeUnit.MILLISECONDS).enable(false).build());
+        events.add(FastModeSwitchEvent.builder().universeId("1").id("f1").delay(150).timeUnit(TimeUnit.MILLISECONDS).enable(true).build());
+        events.add(FastModeSwitchEvent.builder().universeId("1").id("f0").delay(350).timeUnit(TimeUnit.MILLISECONDS).enable(false).build());
         events.addAll(eventIdToDuration.entrySet().stream().
-                map(e -> GameEvent.builder().id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
+                map(e -> GameEvent.builder().universeId("1").id(e.getValue()).delay(e.getKey()).timeUnit(TimeUnit.MILLISECONDS).build()).toList());
         runEventThread(eventRunner, events, waitTime);
 
         checkEventsSequence(eventRunner, eventIdToDuration);
@@ -104,12 +103,14 @@ class GameEventThreadTest {
     private void runEventThread(EventExecutor eventExecutor,
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
-        GameEventThread thread = new GameEventThread(1, new CountDownLatch(1), eventExecutor, new DisabledEventSerializer());
+        GameEventThread thread = new GameEventThread(events.get(0).getUniverseId(),
+                new CountDownLatch(1), eventExecutor, new DisabledEventSerializer());
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
         thread.addEvent(UniverseQueueTerminationEvent.
                 builder().
+                universeId("1").
                 id(UUID.randomUUID().toString()).
                 delay(0).
                 timeUnit(TimeUnit.MILLISECONDS).
@@ -128,7 +129,7 @@ class GameEventThreadTest {
         private final List<Long> timeStamps = new ArrayList<>();
 
         @Override
-        public void executeEvent(long universeId, GameEvent gameEvent) {
+        public void executeEvent(GameEvent gameEvent) {
             eventSequence.add(gameEvent.getId());
             timeStamps.add(System.currentTimeMillis());
         }
@@ -155,9 +156,9 @@ class GameEventThreadTest {
     }
 
     private static class DisabledEventSerializer extends EventSerializer {
-        public List<String> readFromDataWarehouse(long universeId) {
+        public List<String> readFromDataWarehouse(String universeId) {
             return Collections.emptyList();
         }
-        public void writeToDataWarehouse(long universeId, List<String> events) {}
+        public void writeToDataWarehouse(String universeId, List<String> events) {}
     }
 }

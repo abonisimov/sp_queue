@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 @Slf4j
 public abstract class EventSerializer {
 
-    public void readEvents(long universeId, Consumer<GameEvent> consumer) throws IOException {
+    public void readEvents(String universeId, Consumer<GameEvent> consumer) throws IOException {
         log.debug("Reading queue for universe {}", universeId);
         List<String> eventJsonList = readFromDataWarehouse(universeId);
         for (String json : eventJsonList) {
@@ -30,7 +30,7 @@ public abstract class EventSerializer {
         }
     }
 
-    public void writeEvents(long universeId, Iterator<GameEvent> iterator) throws IOException {
+    public void writeEvents(String universeId, Iterator<GameEvent> iterator) throws IOException {
         log.debug("Writing queue for universe {}", universeId);
         long currentTimeMillis = System.currentTimeMillis();
         List<String> events = new ArrayList<>();
@@ -51,6 +51,6 @@ public abstract class EventSerializer {
         event.changeDelay(diff, TimeUnit.MILLISECONDS);
     }
 
-    public abstract List<String> readFromDataWarehouse(long universeId) throws IOException;
-    public abstract void writeToDataWarehouse(long universeId, List<String> events) throws IOException;
+    public abstract List<String> readFromDataWarehouse(String universeId) throws IOException;
+    public abstract void writeToDataWarehouse(String universeId, List<String> events) throws IOException;
 }

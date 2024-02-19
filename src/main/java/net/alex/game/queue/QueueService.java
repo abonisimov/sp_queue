@@ -50,7 +50,7 @@ public class QueueService {
     @PreDestroy
     public void shutdown() throws InterruptedException {
         log.info("Shutting down thread pool");
-        for (long universeId : threadPoolExecutor.getUniverseSet()) {
+        for (String universeId : threadPoolExecutor.getUniverseSet()) {
             stopUniverse(universeId);
         }
         threadPoolExecutor.shutdown();
@@ -59,7 +59,7 @@ public class QueueService {
         }
     }
 
-    public synchronized void startUniverse(long universeId) {
+    public synchronized void startUniverse(String universeId) {
         if (!threadPoolExecutor.hasCapacity()) {
             log.info("Thread pool has maximum threads of {}, can't start universe {}", executorConfig.poolSize(), universeId);
             throw new UniverseCountExceededException();
@@ -89,12 +89,13 @@ public class QueueService {
         }
     }
 
-    public synchronized void stopUniverse(long universeId) {
+    public synchronized void stopUniverse(String universeId) {
         try {
             log.debug("Stopping universe {}", universeId);
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            checkAndAddEvent(universeId, UniverseQueueTerminationEvent.
+            checkAndAddEvent(UniverseQueueTerminationEvent.
                     builder().
+                    universeId(universeId).
                     id(UUID.randomUUID().toString()).
                     delay(0).
                     timeUnit(TimeUnit.MILLISECONDS).
@@ -109,44 +110,46 @@ public class QueueService {
         }
     }
 
-    public void enableFastMode(long universeId, Duration duration) {
-        FastModeSwitchEvent enableEvent = FastModeSwitchEvent.builder().
+    public void enableFastMode(String universeId, Duration duration) {
+        FastModeSwitchEvent enableEvent = FastModeSwitchEvent.builder().universeId(universeId).
                 id(UUID.randomUUID().toString()).delay(0).timeUnit(TimeUnit.MILLISECONDS).enable(true).build();
-        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+        FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().universeId(universeId).
                 id(UUID.randomUUID().toString()).delay(duration.toMillis()).
                 timeUnit(TimeUnit.MILLISECONDS).enable(false).build();
-        checkAndAddEvent(universeId, enableEvent);
-        checkAndAddEvent(universeId, disableEvent);
+        checkAndAddEvent(enableEvent);
+        checkAndAddEvent(disableEvent);
     }
 
-    public void interruptFastMode(long universeId) {
+    public void interruptFastMode(String universeId) {
         FastModeSwitchEvent disableEvent = FastModeSwitchEvent.builder().
+                universeId(universeId).
                 id(UUID.randomUUID().toString()).
                 delay(0).
                 timeUnit(TimeUnit.MILLISECONDS).
                 enable(false).
                 build();
-        checkAndAddEvent(universeId, disableEvent);
+        checkAndAddEvent(disableEvent);
     }
 
-    public void addEvent(long universeId, String eventId, long delay, TimeUnit timeUnit) {
-        checkAndAddEvent(universeId, GameEvent.builder().id(eventId).delay(delay).timeUnit(timeUnit).build());
+    public void addEvent(String universeId, String eventId, long delay, TimeUnit timeUnit) {
+        checkAndAddEvent(GameEvent.builder().universeId(universeId).id(eventId).delay(delay).timeUnit(timeUnit).build());
     }
 
-    public boolean isUniverseRunning(long universeId) {
+    public boolean isUniverseRunning(String universeId) {
         return threadPoolExecutor.isUniversePresent(universeId);
     }
 
-    public Set<Long> getRunningUniverses() {
+    public Set<String> getRunningUniverses() {
         return threadPoolExecutor.getUniverseSet();
     }
 
-    private void checkAndAddEvent(long universeId, GameEvent gameEvent) {
-        GameEventThread gameEventThread = threadPoolExecutor.getTask(universeId);
+    private void checkAndAddEvent(GameEvent gameEvent) {
+        GameEventThread gameEventThread = threadPoolExecutor.getTask(gameEvent.getUniverseId());
         if (gameEventThread != null) {
-            threadPoolExecutor.getTask(universeId).addEvent(gameEvent);
+            gameEventThread.addEvent(gameEvent);
         } else {
-            log.debug("Universe {} is not currently running, can't add event {}", universeId, gameEvent.getId());
+            log.debug("Universe {} is not currently running, can't add event {}",
+                    gameEvent.getUniverseId(), gameEvent.getId());
             throw new UniverseNotFoundException();
         }
     }
