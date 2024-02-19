@@ -1,8 +1,6 @@
 package net.alex.game.queue.event;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.jackson.Jacksonized;
 import lombok.extern.slf4j.Slf4j;
@@ -16,13 +14,19 @@ import java.util.concurrent.TimeUnit;
 @SuperBuilder
 @Jacksonized
 public class GameEvent implements Delayed {
+    @NonNull
+    private final String universeId;
+    @NonNull
     private final String id;
     private final long delay;
-    private final TimeUnit timeUnit;
+    @NonNull
+    @Builder.Default()
+    private final TimeUnit timeUnit = TimeUnit.MILLISECONDS;
     private long startTime;
     @Setter
     private long backupTime;
-    private String eventClass;
+    @Getter(AccessLevel.NONE)
+    private final String eventClass;
 
     public void init() {
         this.startTime = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(delay, timeUnit);

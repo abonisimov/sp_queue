@@ -15,13 +15,14 @@ class FastModeSwitchEventTest {
     @Test
     void testDeserializationFastModeSwitchEvent() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        String json = mapper.writer().writeValueAsString(FastModeSwitchEvent.builder().
+        String json = mapper.writer().writeValueAsString(FastModeSwitchEvent.builder().universeId("1").
                 id("321").delay(800).timeUnit(TimeUnit.SECONDS).backupTime(1000).enable(true).build());
         log.debug(json);
         assertTrue(StringUtils.isNotBlank(json));
         FastModeSwitchEvent event = mapper.reader().readValue(json, FastModeSwitchEvent.class);
         log.debug("{}", event);
         assertNotNull(event);
+        assertEquals("1", event.getUniverseId());
         assertEquals("321", event.getId());
         assertEquals(800, event.getDelay());
         assertEquals(TimeUnit.SECONDS, event.getTimeUnit());

@@ -24,9 +24,9 @@ class InMemoryEventSerializerTest {
     @Test
     void readWriteTest() throws IOException {
         List<GameEvent> events = new ArrayList<>();
-        GameEvent event0 = GameEvent.builder().
+        GameEvent event0 = GameEvent.builder().universeId("1").
                 id("123").delay(5000).timeUnit(TimeUnit.MILLISECONDS).build();
-        GameEvent event1 = FastModeSwitchEvent.builder().
+        GameEvent event1 = FastModeSwitchEvent.builder().universeId("1").
                 id("321").delay(8).timeUnit(TimeUnit.SECONDS).enable(true).build();
         event0.init();
         event1.init();
@@ -36,10 +36,10 @@ class InMemoryEventSerializerTest {
 
         events.add(event0);
         events.add(event1);
-        inMemoryEventSerializer.writeEvents(1L, events.iterator());
+        inMemoryEventSerializer.writeEvents("1", events.iterator());
 
         List<GameEvent> result = new ArrayList<>();
-        inMemoryEventSerializer.readEvents(1L, result::add);
+        inMemoryEventSerializer.readEvents("1", result::add);
 
         assertNotNull(result);
         assertEquals(2, result.size());

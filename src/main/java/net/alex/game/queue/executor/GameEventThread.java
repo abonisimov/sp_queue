@@ -20,14 +20,14 @@ public class GameEventThread implements Runnable {
     private final EventSerializer eventSerializer;
 
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
-    private final long universeId;
+    private final String universeId;
     private final CountDownLatch startupLatch;
     private final ReentrantLock lock = new ReentrantLock();
 
     private boolean fastMode = false;
     private long fastModeTimestamp = -1L;
 
-    public GameEventThread(long universeId,
+    public GameEventThread(String universeId,
                            CountDownLatch startupLatch,
                            EventExecutor eventExecutor,
                            EventSerializer eventSerializer) {
@@ -37,7 +37,7 @@ public class GameEventThread implements Runnable {
         this.eventSerializer = eventSerializer;
     }
 
-    public long getUniverseId() {
+    public String getUniverseId() {
         return universeId;
     }
 
@@ -45,8 +45,14 @@ public class GameEventThread implements Runnable {
         boolean lockAcquired = lock.tryLock();
         if (lockAcquired) {
             try {
-                event.init();
-                eventDelayQueue.offer(event);
+                if (event.getUniverseId().equals(universeId)) {
+                    event.init();
+                    eventDelayQueue.offer(event);
+                } else {
+                    log.debug("Thread for universe {} can't process event from universe {} with id {}",
+                            universeId, event.getUniverseId(), event.getId());
+                    throw new EventDeclinedException();
+                }
             } finally {
                 lock.unlock();
             }
@@ -71,7 +77,7 @@ public class GameEventThread implements Runnable {
                 } else if (event instanceof FastModeSwitchEvent) {
                     switchFastMode((FastModeSwitchEvent)event);
                 } else {
-                    eventExecutor.executeEvent(universeId, event);
+                    eventExecutor.executeEvent(event);
                 }
             }
         } catch (InterruptedException e) {

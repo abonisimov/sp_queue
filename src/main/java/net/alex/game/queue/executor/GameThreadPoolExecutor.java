@@ -8,7 +8,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class GameThreadPoolExecutor extends ThreadPoolExecutor {
-    private final ConcurrentHashMap<Long, GameEventThread> activeTasks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, GameEventThread> activeTasks = new ConcurrentHashMap<>();
 
     public GameThreadPoolExecutor(int corePoolSize,
                                   int maximumPoolSize,
@@ -31,15 +31,15 @@ public class GameThreadPoolExecutor extends ThreadPoolExecutor {
         activeTasks.remove(((GameEventThread)r).getUniverseId());
     }
 
-    public Set<Long> getUniverseSet() {
+    public Set<String> getUniverseSet() {
         return Collections.unmodifiableSet(activeTasks.keySet());
     }
 
-    public GameEventThread getTask(long universeId) {
+    public GameEventThread getTask(String universeId) {
         return activeTasks.get(universeId);
     }
 
-    public boolean isUniversePresent(long universeId) {
+    public boolean isUniversePresent(String universeId) {
         return activeTasks.containsKey(universeId);
     }
 
