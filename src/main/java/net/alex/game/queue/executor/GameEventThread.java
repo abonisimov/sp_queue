@@ -3,7 +3,7 @@ package net.alex.game.queue.executor;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
-import net.alex.game.queue.event.UniverseQueueTerminationEvent;
+import net.alex.game.queue.event.QueueTerminationEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
 import net.alex.game.queue.serialize.EventSerializer;
 
@@ -18,12 +18,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class GameEventThread implements Runnable {
 
     private final EventExecutor eventExecutor;
-    private final EventSerializer eventSerializer;
     private final long loadFactorPrecision;
 
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
-    private final String universeId;
-    private final CountDownLatch startupLatch;
     private final ReentrantLock lock = new ReentrantLock();
 
     private final AtomicReference<GameThreadStats> statsAtomicReference = new AtomicReference<>(new GameThreadStats());
@@ -31,39 +28,22 @@ public class GameEventThread implements Runnable {
     private boolean fastMode = false;
     private long fastModeTimestamp = -1L;
 
-    public GameEventThread(String universeId,
-                           CountDownLatch startupLatch,
-                           EventExecutor eventExecutor,
-                           EventSerializer eventSerializer,
-                           long loadFactorPrecision) {
-        this.universeId = universeId;
-        this.startupLatch = startupLatch;
+    public GameEventThread(EventExecutor eventExecutor, long loadFactorPrecision) {
         this.eventExecutor = eventExecutor;
-        this.eventSerializer = eventSerializer;
         this.loadFactorPrecision = loadFactorPrecision;
-    }
-
-    public String getUniverseId() {
-        return universeId;
     }
 
     public void addEvent(GameEvent event) {
         boolean lockAcquired = lock.tryLock();
         if (lockAcquired) {
             try {
-                if (event.getUniverseId().equals(universeId)) {
-                    event.init();
-                    eventDelayQueue.offer(event);
-                } else {
-                    log.debug("Thread for universe {} can't process event from universe {} with id {}",
-                            universeId, event.getUniverseId(), event.getId());
-                    throw new EventDeclinedException();
-                }
+                event.init();
+                eventDelayQueue.offer(event);
             } finally {
                 lock.unlock();
             }
         } else {
-            log.debug("Universe {} is shutting down, event {} is declined", universeId, event.getId());
+            log.debug("Queue thread is shutting down, event {} is declined", event.getId());
             throw new EventDeclinedException();
         }
     }
@@ -75,17 +55,17 @@ public class GameEventThread implements Runnable {
     @Override
     public void run() {
         CountDownLatch shutdownLatch = null;
+        EventSerializer eventSerializer = null;
         try {
-            startupLatch.countDown();
-            eventSerializer.readEvents(universeId, this::addEvent);
             long startTime = System.currentTimeMillis();
             for (;;) {
-                long cycleStartTime = System.currentTimeMillis();
                 GameEvent event = fetchEvent();
+                long cycleStartTime = System.currentTimeMillis();
                 logEvent(event);
                 boolean result = true;
-                if (event instanceof UniverseQueueTerminationEvent) {
-                    shutdownLatch = ((UniverseQueueTerminationEvent) event).getShutdownLatch();
+                if (event instanceof QueueTerminationEvent) {
+                    eventSerializer = ((QueueTerminationEvent) event).getEventSerializer();
+                    shutdownLatch = ((QueueTerminationEvent) event).getShutdownLatch();
                     break;
                 } else if (event instanceof FastModeSwitchEvent) {
                     switchFastMode((FastModeSwitchEvent)event);
@@ -95,13 +75,13 @@ public class GameEventThread implements Runnable {
                 updateStats(startTime, cycleStartTime, System.currentTimeMillis(), result);
             }
         } catch (InterruptedException e) {
-            log.warn("Universe {} thread was interrupted", universeId);
+            log.warn("Queue thread was interrupted");
             log.warn(e.getMessage(), e);
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
         } finally {
-            cleanUp(shutdownLatch);
+            cleanUp(shutdownLatch, eventSerializer);
         }
     }
 
@@ -146,16 +126,16 @@ public class GameEventThread implements Runnable {
         fastMode = event.isEnable();
     }
 
-    private void cleanUp(CountDownLatch shutdownLatch) {
+    private void cleanUp(CountDownLatch shutdownLatch, EventSerializer eventSerializer) {
         lock.lock();
         try {
-            eventSerializer.writeEvents(universeId, eventDelayQueue.iterator());
+            eventSerializer.writeEvents(eventDelayQueue.iterator());
         } catch (IOException e) {
-            log.warn("Unable to backup queue for universe {} because of the following reason:", universeId);
+            log.warn("Unable to backup queue because of the following reason:");
             log.warn(e.getMessage(), e);
         } finally {
             eventDelayQueue.clear();
-            log.debug("Universe {} thread finished", universeId);
+            log.debug("Queue thread finished");
             lock.unlock();
             if (shutdownLatch != null) {
                 shutdownLatch.countDown();

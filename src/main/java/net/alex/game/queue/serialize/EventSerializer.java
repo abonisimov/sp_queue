@@ -15,9 +15,9 @@ import java.util.function.Consumer;
 @Slf4j
 public abstract class EventSerializer {
 
-    public void readEvents(String universeId, Consumer<GameEvent> consumer) throws IOException {
-        log.debug("Reading queue for universe {}", universeId);
-        List<String> eventJsonList = readFromDataWarehouse(universeId);
+    public void readEvents(Consumer<GameEvent> consumer) throws IOException {
+        log.debug("Reading events to queue");
+        List<String> eventJsonList = readFromDataStore();
         for (String json : eventJsonList) {
             GameEvent event;
             try {
@@ -25,13 +25,13 @@ public abstract class EventSerializer {
                 changeDelay(event);
                 consumer.accept(event);
             } catch (ClassNotFoundException e) {
-                log.warn("Can't deserialize GameEvent JSON into a valid object, universeId = " + universeId, e);
+                log.warn("Can't deserialize GameEvent JSON into a valid object", e);
             }
         }
     }
 
-    public void writeEvents(String universeId, Iterator<GameEvent> iterator) throws IOException {
-        log.debug("Writing queue for universe {}", universeId);
+    public void writeEvents(Iterator<GameEvent> iterator) throws IOException {
+        log.debug("Writing events from queue");
         long currentTimeMillis = System.currentTimeMillis();
         List<String> events = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -43,7 +43,7 @@ public abstract class EventSerializer {
             String json = GameEventJSON.toJSON(event);
             events.add(json);
         }
-        writeToDataWarehouse(universeId, events);
+        writeToDataStore(events);
     }
 
     private void changeDelay(GameEvent event) {
@@ -51,6 +51,6 @@ public abstract class EventSerializer {
         event.changeDelay(diff, TimeUnit.MILLISECONDS);
     }
 
-    public abstract List<String> readFromDataWarehouse(String universeId) throws IOException;
-    public abstract void writeToDataWarehouse(String universeId, List<String> events) throws IOException;
+    public abstract List<String> readFromDataStore() throws IOException;
+    public abstract void writeToDataStore(List<String> events) throws IOException;
 }

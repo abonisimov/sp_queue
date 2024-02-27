@@ -36,10 +36,10 @@ class InMemoryEventSerializerTest {
 
         events.add(event0);
         events.add(event1);
-        inMemoryEventSerializer.writeEvents("1", events.iterator());
+        inMemoryEventSerializer.writeEvents(events.iterator());
 
         List<GameEvent> result = new ArrayList<>();
-        inMemoryEventSerializer.readEvents("1", result::add);
+        inMemoryEventSerializer.readEvents(result::add);
 
         assertNotNull(result);
         assertEquals(2, result.size());
