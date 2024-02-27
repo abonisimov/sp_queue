@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
@@ -18,11 +19,14 @@ public class GameEventThread implements Runnable {
 
     private final EventExecutor eventExecutor;
     private final EventSerializer eventSerializer;
+    private final long loadFactorPrecision;
 
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
     private final String universeId;
     private final CountDownLatch startupLatch;
     private final ReentrantLock lock = new ReentrantLock();
+
+    private final AtomicReference<GameThreadStats> statsAtomicReference = new AtomicReference<>(new GameThreadStats());
 
     private boolean fastMode = false;
     private long fastModeTimestamp = -1L;
@@ -30,11 +34,13 @@ public class GameEventThread implements Runnable {
     public GameEventThread(String universeId,
                            CountDownLatch startupLatch,
                            EventExecutor eventExecutor,
-                           EventSerializer eventSerializer) {
+                           EventSerializer eventSerializer,
+                           long loadFactorPrecision) {
         this.universeId = universeId;
         this.startupLatch = startupLatch;
         this.eventExecutor = eventExecutor;
         this.eventSerializer = eventSerializer;
+        this.loadFactorPrecision = loadFactorPrecision;
     }
 
     public String getUniverseId() {
@@ -62,23 +68,31 @@ public class GameEventThread implements Runnable {
         }
     }
 
+    public GameThreadStats getStatistics() {
+        return statsAtomicReference.get();
+    }
+
     @Override
     public void run() {
         CountDownLatch shutdownLatch = null;
         try {
             startupLatch.countDown();
             eventSerializer.readEvents(universeId, this::addEvent);
+            long startTime = System.currentTimeMillis();
             for (;;) {
+                long cycleStartTime = System.currentTimeMillis();
                 GameEvent event = fetchEvent();
                 logEvent(event);
+                boolean result = true;
                 if (event instanceof UniverseQueueTerminationEvent) {
                     shutdownLatch = ((UniverseQueueTerminationEvent) event).getShutdownLatch();
                     break;
                 } else if (event instanceof FastModeSwitchEvent) {
                     switchFastMode((FastModeSwitchEvent)event);
                 } else {
-                    eventExecutor.executeEvent(event);
+                    result = eventExecutor.executeEvent(event);
                 }
+                updateStats(startTime, cycleStartTime, System.currentTimeMillis(), result);
             }
         } catch (InterruptedException e) {
             log.warn("Universe {} thread was interrupted", universeId);
@@ -89,6 +103,16 @@ public class GameEventThread implements Runnable {
         } finally {
             cleanUp(shutdownLatch);
         }
+    }
+
+    private void updateStats(long startTime, long cycleStartTime, long cycleEndTime, boolean isSuccessCycle) {
+        GameThreadStats newValue;
+        GameThreadStats current;
+        do {
+            current = statsAtomicReference.get();
+            newValue = GameThreadStats.updateStatsAndGet(
+                    current, startTime, cycleStartTime, cycleEndTime, isSuccessCycle, loadFactorPrecision);
+        } while(!statsAtomicReference.compareAndSet(current, newValue));
     }
 
     private GameEvent fetchEvent() throws InterruptedException {

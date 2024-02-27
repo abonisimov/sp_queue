@@ -5,3 +5,4 @@ logging:
 
 executor:
   poolSize: 4
+  loadFactorPrecision: 10

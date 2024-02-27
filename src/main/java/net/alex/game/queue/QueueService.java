@@ -66,8 +66,8 @@ public class QueueService {
         }
         if (!threadPoolExecutor.isUniversePresent(universeId)) {
             CountDownLatch countDownLatch = new CountDownLatch(1);
-            GameEventThread gameEventThread = new GameEventThread(universeId,
-                    countDownLatch, new GameEventExecutor(), inMemoryEventSerializer);
+            GameEventThread gameEventThread = new GameEventThread(universeId, countDownLatch, new GameEventExecutor(),
+                    inMemoryEventSerializer, executorConfig.loadFactorPrecision());
             try {
                 log.debug("Starting universe {}", universeId);
                 threadPoolExecutor.execute(gameEventThread);

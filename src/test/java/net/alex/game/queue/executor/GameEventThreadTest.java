@@ -104,7 +104,7 @@ class GameEventThreadTest {
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
         GameEventThread thread = new GameEventThread(events.get(0).getUniverseId(),
-                new CountDownLatch(1), eventExecutor, new DisabledEventSerializer());
+                new CountDownLatch(1), eventExecutor, new DisabledEventSerializer(), 10);
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
@@ -129,9 +129,10 @@ class GameEventThreadTest {
         private final List<Long> timeStamps = new ArrayList<>();
 
         @Override
-        public void executeEvent(GameEvent gameEvent) {
+        public boolean executeEvent(GameEvent gameEvent) {
             eventSequence.add(gameEvent.getId());
             timeStamps.add(System.currentTimeMillis());
+            return true;
         }
 
         public List<String> getEventSequence() {
