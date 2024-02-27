@@ -1,49 +1,60 @@
 package net.alex.game.queue.executor;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
+import net.alex.game.queue.event.QueueTerminationEvent;
+import net.alex.game.queue.exception.WaitingInterruptedException;
+import net.alex.game.queue.serialize.EventSerializer;
+
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class GameThreadPoolExecutor extends ThreadPoolExecutor {
-    private final ConcurrentHashMap<String, GameEventThread> activeTasks = new ConcurrentHashMap<>();
+    private final List<GameEventThread> activeTasks = Collections.synchronizedList(new ArrayList<>());
 
-    public GameThreadPoolExecutor(int corePoolSize,
-                                  int maximumPoolSize,
-                                  long keepAliveTime,
-                                  TimeUnit unit,
-                                  BlockingQueue<Runnable> workQueue) {
-        super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
+    public GameThreadPoolExecutor(int corePoolSize, long loadFactorPrecision) {
+        super(corePoolSize, corePoolSize, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        for (int i = 0; i < corePoolSize; i++) {
+            GameEventThread gameEventThread = new GameEventThread(new GameEventExecutor(), loadFactorPrecision);
+            activeTasks.add(gameEventThread);
+            execute(gameEventThread);
+        }
     }
 
-    @Override
-    protected void beforeExecute(Thread t, Runnable r) {
-        GameEventThread runnable = (GameEventThread)r;
-        activeTasks.put(runnable.getUniverseId(), runnable);
-        super.beforeExecute(t, r);
+    public GameEventThread getVacantThread() {
+        return activeTasks.stream().
+                min(Comparator.comparingDouble(e -> e.getStatistics().getMomentaryLoadFactor())).
+                orElseThrow();
     }
 
-    @Override
-    protected void afterExecute(Runnable r, Throwable t) {
-        super.afterExecute(r, t);
-        activeTasks.remove(((GameEventThread)r).getUniverseId());
+    public void shutdown(EventSerializer eventSerializer) {
+        try{
+            for (GameEventThread runnable : activeTasks) {
+                stopThread(runnable, eventSerializer);
+            }
+        } catch (InterruptedException e) {
+            log.warn("Waiting thread to stop was interrupted");
+            log.warn(e.getMessage(), e);
+            Thread.currentThread().interrupt();
+            throw new WaitingInterruptedException();
+        }
+        super.shutdown();
     }
 
-    public Set<String> getUniverseSet() {
-        return Collections.unmodifiableSet(activeTasks.keySet());
-    }
-
-    public GameEventThread getTask(String universeId) {
-        return activeTasks.get(universeId);
-    }
-
-    public boolean isUniversePresent(String universeId) {
-        return activeTasks.containsKey(universeId);
-    }
-
-    public boolean hasCapacity() {
-        return getMaximumPoolSize() > getActiveCount();
+    private synchronized void stopThread(GameEventThread runnable, EventSerializer eventSerializer) throws InterruptedException {
+        log.debug("Stopping queue thread");
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        runnable.addEvent(QueueTerminationEvent.
+                builder().
+                id(UUID.randomUUID().toString()).
+                delay(0).
+                timeUnit(TimeUnit.MILLISECONDS).
+                eventSerializer(eventSerializer).
+                shutdownLatch(countDownLatch).build());
+        countDownLatch.await();
+        log.debug("Queue thread stopped");
     }
 }

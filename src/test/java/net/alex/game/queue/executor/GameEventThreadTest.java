@@ -3,8 +3,9 @@ package net.alex.game.queue.executor;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
-import net.alex.game.queue.event.UniverseQueueTerminationEvent;
+import net.alex.game.queue.event.QueueTerminationEvent;
 import net.alex.game.queue.serialize.EventSerializer;
+import net.alex.game.queue.serialize.InMemoryEventSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -103,18 +104,18 @@ class GameEventThreadTest {
     private void runEventThread(EventExecutor eventExecutor,
                                 List<GameEvent> events,
                                 long waitTime) throws InterruptedException {
-        GameEventThread thread = new GameEventThread(events.get(0).getUniverseId(),
-                new CountDownLatch(1), eventExecutor, new DisabledEventSerializer(), 10);
+        GameEventThread thread = new GameEventThread(eventExecutor, 10);
         new Thread(thread).start();
         events.forEach(thread::addEvent);
         Thread.sleep(waitTime);
-        thread.addEvent(UniverseQueueTerminationEvent.
+        thread.addEvent(QueueTerminationEvent.
                 builder().
                 universeId("1").
                 id(UUID.randomUUID().toString()).
                 delay(0).
                 timeUnit(TimeUnit.MILLISECONDS).
                 shutdownLatch(new CountDownLatch(1)).
+                eventSerializer(new InMemoryEventSerializer()).
                 build());
     }
 
@@ -157,9 +158,9 @@ class GameEventThreadTest {
     }
 
     private static class DisabledEventSerializer extends EventSerializer {
-        public List<String> readFromDataWarehouse(String universeId) {
+        public List<String> readFromDataStore() {
             return Collections.emptyList();
         }
-        public void writeToDataWarehouse(String universeId, List<String> events) {}
+        public void writeToDataStore(List<String> events) {}
     }
 }
