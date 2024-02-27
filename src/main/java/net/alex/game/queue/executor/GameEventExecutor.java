@@ -1,7 +1,7 @@
 package net.alex.game.queue.executor;
 
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.queue.event.GameEvent;
+import net.alex.game.model.event.GameEvent;
 
 @Slf4j
 public class GameEventExecutor implements EventExecutor {

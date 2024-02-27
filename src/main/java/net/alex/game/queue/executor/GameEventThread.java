@@ -1,8 +1,8 @@
 package net.alex.game.queue.executor;
 
 import lombok.extern.slf4j.Slf4j;
+import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
-import net.alex.game.queue.event.GameEvent;
 import net.alex.game.queue.event.UniverseQueueTerminationEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
 import net.alex.game.queue.serialize.EventSerializer;

@@ -1,8 +1,8 @@
 package net.alex.game.queue.serialize;
 
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.queue.event.GameEvent;
-import net.alex.game.queue.event.GameEventJSON;
+import net.alex.game.model.event.GameEvent;
+import net.alex.game.model.event.GameEventJSON;
 import net.alex.game.queue.event.SystemEvent;
 
 import java.io.IOException;
