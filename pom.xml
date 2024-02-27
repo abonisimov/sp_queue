@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>net.alex.game</groupId>
-    <artifactId>queue</artifactId>
+    <artifactId>sp_queue</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>queue</name>
-    <description>queue</description>
+    <name>sp_queue</name>
+    <description>sp_queue</description>
     <properties>
         <java.version>17</java.version>
     </properties>
