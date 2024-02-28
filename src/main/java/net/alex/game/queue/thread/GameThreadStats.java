@@ -1,15 +1,18 @@
-package net.alex.game.queue.executor;
+package net.alex.game.queue.thread;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 @NoArgsConstructor
 @EqualsAndHashCode
 @Getter
 @SuperBuilder
+@ToString
 public class GameThreadStats {
+    private long threadId;
     private long startTime;
     private long operationsDone;
     private long operationsFailed;
@@ -27,13 +30,15 @@ public class GameThreadStats {
     private long lastXWaitTime;
     private double momentaryLoadFactor;
 
-    public static GameThreadStats updateStatsAndGet(GameThreadStats prevStats, 
+    public static GameThreadStats updateStatsAndGet(GameThreadStats prevStats,
+                                                    long threadId,
                                                     long threadStartTime,
                                                     long cycleStartTime,
                                                     long cycleEndTime,
                                                     boolean isSuccessCycle,
                                                     long loadFactorPrecision) {
         GameThreadStats updatedStats = new GameThreadStats();
+        updatedStats.threadId = threadId;
         updatedStats.startTime = threadStartTime;
         updatedStats.momentaryLoadFactorPrecision = loadFactorPrecision;
         if (isSuccessCycle) {
@@ -44,6 +49,9 @@ public class GameThreadStats {
             updatedStats.operationsDone = prevStats.getOperationsDone();
         }
         long totalTime = cycleEndTime - threadStartTime;
+        if (prevStats.lastXStartTime == 0) {
+            updatedStats.lastXStartTime = threadStartTime;
+        }
         long lastXTotalTime = cycleEndTime - (prevStats.getLastXStartTime() != 0 ? prevStats.getLastXStartTime() : threadStartTime);
         long totalOperations = updatedStats.getOperationsDone() + updatedStats.getOperationsFailed();
         long cycleTime = cycleEndTime - cycleStartTime;

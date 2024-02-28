@@ -10,6 +10,6 @@ import net.alex.game.model.event.GameEvent;
 @Getter
 @SuperBuilder
 @Jacksonized
-public class FastModeSwitchEvent extends GameEvent {
+public class FastModeSwitchEvent extends GameEvent implements SystemEvent {
     private final boolean enable;
 }

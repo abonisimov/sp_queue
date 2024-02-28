@@ -1,4 +1,4 @@
-package net.alex.game.queue.executor;
+package net.alex.game.queue.thread;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,12 +13,13 @@ class GameThreadStatsTest {
         long cycleEndTime = System.currentTimeMillis();
         long startTime = cycleEndTime - 100;
         long cycleStartTime = cycleEndTime - 30;
-        stats = GameThreadStats.updateStatsAndGet(stats, startTime, cycleStartTime, cycleEndTime, true, 10);
+        stats = GameThreadStats.updateStatsAndGet(stats, 1, startTime, cycleStartTime, cycleEndTime, true, 10);
 
         assertNotNull(stats);
         assertEquals(GameThreadStats.builder()
+                .threadId(1)
                 .startTime(startTime)
-                .lastXStartTime(0)
+                .lastXStartTime(startTime)
                 .operationsDone(1)
                 .operationsFailed(0)
                 .totalExecutionTime(30)
@@ -36,13 +37,14 @@ class GameThreadStatsTest {
         for (int i = 0; i < 9; i++) {
             cycleStartTime = cycleEndTime + 70;
             cycleEndTime += 100;
-            stats = GameThreadStats.updateStatsAndGet(stats, startTime, cycleStartTime, cycleEndTime, false, 10);
+            stats = GameThreadStats.updateStatsAndGet(stats, 1, startTime, cycleStartTime, cycleEndTime, false, 10);
 
             if (i == 5) {
                 assertNotNull(stats);
                 assertEquals(GameThreadStats.builder()
+                        .threadId(1)
                         .startTime(startTime)
-                        .lastXStartTime(0)
+                        .lastXStartTime(startTime)
                         .operationsDone(1)
                         .operationsFailed(6)
                         .totalExecutionTime(210)
@@ -61,6 +63,7 @@ class GameThreadStatsTest {
 
         assertNotNull(stats);
         assertEquals(GameThreadStats.builder()
+                .threadId(1)
                 .startTime(startTime)
                 .lastXStartTime(cycleStartTime)
                 .operationsDone(1)

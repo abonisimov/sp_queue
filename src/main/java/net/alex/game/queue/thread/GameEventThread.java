@@ -1,10 +1,12 @@
-package net.alex.game.queue.executor;
+package net.alex.game.queue.thread;
 
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.QueueTerminationEvent;
+import net.alex.game.queue.event.SystemEvent;
 import net.alex.game.queue.exception.EventDeclinedException;
+import net.alex.game.queue.executor.EventExecutor;
 import net.alex.game.queue.serialize.EventSerializer;
 
 import java.io.IOException;
@@ -58,20 +60,26 @@ public class GameEventThread implements Runnable {
         EventSerializer eventSerializer = null;
         try {
             long startTime = System.currentTimeMillis();
-            for (;;) {
+            loop: for (;;) {
                 GameEvent event = fetchEvent();
                 long cycleStartTime = System.currentTimeMillis();
                 logEvent(event);
                 boolean result = true;
-                if (event instanceof QueueTerminationEvent) {
-                    eventSerializer = ((QueueTerminationEvent) event).getEventSerializer();
-                    shutdownLatch = ((QueueTerminationEvent) event).getShutdownLatch();
-                    break;
-                } else if (event instanceof FastModeSwitchEvent) {
-                    switchFastMode((FastModeSwitchEvent)event);
+
+                if (event instanceof SystemEvent) {
+                    switch (event) {
+                        case QueueTerminationEvent e -> {
+                            eventSerializer = e.getEventSerializer();
+                            shutdownLatch = e.getShutdownLatch();
+                            break loop;
+                        }
+                        case FastModeSwitchEvent e -> switchFastMode(e);
+                        default -> {}
+                    }
                 } else {
                     result = eventExecutor.executeEvent(event);
                 }
+
                 updateStats(startTime, cycleStartTime, System.currentTimeMillis(), result);
             }
         } catch (InterruptedException e) {
@@ -90,8 +98,8 @@ public class GameEventThread implements Runnable {
         GameThreadStats current;
         do {
             current = statsAtomicReference.get();
-            newValue = GameThreadStats.updateStatsAndGet(
-                    current, startTime, cycleStartTime, cycleEndTime, isSuccessCycle, loadFactorPrecision);
+            newValue = GameThreadStats.updateStatsAndGet(current, Thread.currentThread().getId(), startTime,
+                    cycleStartTime, cycleEndTime, isSuccessCycle, loadFactorPrecision);
         } while(!statsAtomicReference.compareAndSet(current, newValue));
     }
 
@@ -129,7 +137,11 @@ public class GameEventThread implements Runnable {
     private void cleanUp(CountDownLatch shutdownLatch, EventSerializer eventSerializer) {
         lock.lock();
         try {
-            eventSerializer.writeEvents(eventDelayQueue.iterator());
+            if (eventSerializer != null) {
+                eventSerializer.writeEvents(eventDelayQueue.iterator());
+            } else {
+                log.warn("Event serializer is not supplied, queue will not be persisted");
+            }
         } catch (IOException e) {
             log.warn("Unable to backup queue because of the following reason:");
             log.warn(e.getMessage(), e);

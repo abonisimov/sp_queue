@@ -1,12 +1,15 @@
 package net.alex.game.queue;
 
 import net.alex.game.queue.config.ExecutorConfig;
+import net.alex.game.queue.thread.GameThreadStats;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class QueueServiceTest {
@@ -18,51 +21,23 @@ class QueueServiceTest {
     private ExecutorConfig executorConfig;
 
     @Test
-    @DirtiesContext
-    void testStart() {
-        assertNotNull(queueService);
-    }
-
-    /*@Test
-    @DirtiesContext
-    void testStartStop() {
-        Set<String> universeIds = Stream.iterate(1L, n -> n + 1).
-                limit(executorConfig.poolSize()).
-                map(String::valueOf).
-                collect(Collectors.toUnmodifiableSet());
-
-        universeIds.forEach(universeId -> queueService.startUniverse(universeId));
-        universeIds.forEach(universeId -> assertTrue(queueService.isUniverseRunning(universeId)));
-        assertEquals(universeIds, queueService.getRunningUniverses());
-
-        universeIds.forEach(universeId -> queueService.stopThread(universeId));
-        universeIds.forEach(universeId -> assertFalse(queueService.isUniverseRunning(universeId)));
-        assertTrue(queueService.getRunningUniverses().isEmpty());
+    //@DirtiesContext
+    void testGetThreadStatisticsList() {
+        List<GameThreadStats> result = queueService.getThreadStatisticsList();
+        assertNotNull(result);
+        assertEquals(executorConfig.poolSize(), result.size());
+        result.forEach(Assertions::assertNotNull);
     }
 
     @Test
-    @DirtiesContext
-    void testUniverseCountExceededException() {
-        assertThrows(UniverseCountExceededException.class, () ->
-                Stream.iterate(1L, n -> n + 1).
-                        limit(executorConfig.poolSize() + 1).
-                        map(String::valueOf).
-                        forEach(universeId -> queueService.startUniverse(universeId)));
-    }
+    void testGetThreadStatistics() {
+        List<GameThreadStats> list = queueService.getThreadStatisticsList();
+        assertNotNull(list);
+        assertTrue(list.size() > 0);
+        long threadId = list.stream().map(GameThreadStats::getThreadId).findAny().orElseThrow();
 
-    @Test
-    @DirtiesContext
-    void testUniverseNotFoundException() {
-        assertThrows(UniverseNotFoundException.class, () ->
-                queueService.addEvent("-1", "1", 0, TimeUnit.MILLISECONDS));
+        GameThreadStats result = queueService.getThreadStatistics(threadId);
+        assertNotNull(result);
+        assertEquals(threadId, result.getThreadId());
     }
-
-    @Test
-    @DirtiesContext
-    void testUniverseAlreadyRunningException() {
-        assertThrows(UniverseAlreadyRunningException.class, () -> {
-            queueService.startUniverse("1");
-            queueService.startUniverse("1");
-        });
-    }*/
 }

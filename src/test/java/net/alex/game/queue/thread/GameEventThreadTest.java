@@ -1,9 +1,10 @@
-package net.alex.game.queue.executor;
+package net.alex.game.queue.thread;
 
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.QueueTerminationEvent;
+import net.alex.game.queue.executor.EventExecutor;
 import net.alex.game.queue.serialize.EventSerializer;
 import net.alex.game.queue.serialize.InMemoryEventSerializer;
 import org.junit.jupiter.api.Test;
