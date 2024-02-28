@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.ThreadService;
 import net.alex.game.queue.thread.GameThreadStats;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,10 +20,10 @@ import java.util.List;
 @RequestMapping(path = "/v1/api/game")
 public class ThreadController {
 
-    private final QueueService queueService;
+    private final ThreadService threadService;
 
-    public ThreadController(QueueService queueService) {
-        this.queueService = queueService;
+    public ThreadController(ThreadService threadService) {
+        this.threadService = threadService;
     }
 
     @Operation(summary = "Get current statistics for particular thread",
@@ -43,7 +43,7 @@ public class ThreadController {
     @GetMapping(value = "/threads/{threadId}")
     public GameThreadStats getThreadStatistics(@Parameter(description = "Thread id")
                                                @PathVariable(value = "threadId") long threadId) {
-        return queueService.getThreadStatistics(threadId);
+        return threadService.getThreadStatistics(threadId);
     }
 
     @Operation(summary = "Get current statistics",
@@ -58,6 +58,6 @@ public class ThreadController {
             })
     @GetMapping(value = "/threads")
     public List<GameThreadStats> getThreadStatisticsList() {
-        return queueService.getThreadStatisticsList();
+        return threadService.getThreadStatisticsList();
     }
 }

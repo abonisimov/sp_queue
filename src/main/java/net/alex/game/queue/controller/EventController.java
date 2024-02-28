@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.alex.game.model.event.GameEvent;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.EventService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = "/v1/api/game")
 public class EventController {
 
-    private final QueueService queueService;
+    private final EventService eventService;
 
-    public EventController(QueueService queueService) {
-        this.queueService = queueService;
+    public EventController(EventService eventService) {
+        this.eventService = eventService;
     }
 
     @Operation(summary = "Add event to queue for given colony in the given universe",
@@ -41,6 +41,6 @@ public class EventController {
     public void addEvent(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                  schema = @Schema(implementation = GameEvent.class)))
                          @RequestBody @Valid GameEvent event) {
-        queueService.addEvent(event);
+        eventService.addEvent(event);
     }
 }

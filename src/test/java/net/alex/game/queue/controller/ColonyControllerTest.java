@@ -2,7 +2,7 @@ package net.alex.game.queue.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.alex.game.model.Colony;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.ColonyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,7 +28,7 @@ class ColonyControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private QueueService service;
+    private ColonyService service;
 
     @Test
     void createColony() throws Exception {

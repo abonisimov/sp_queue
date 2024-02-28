@@ -4,5 +4,5 @@ logging:
     net.alex.game.queue: INFO
 
 executor:
-  poolSize: 99
+  poolSize: 10
   loadFactorPrecision: 100

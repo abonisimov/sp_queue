@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.alex.game.model.Colony;
 import net.alex.game.model.Universe;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.UniverseService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,10 +19,10 @@ import java.util.List;
 @RequestMapping(path = "/v1/api/game")
 public class UniverseController {
 
-    private final QueueService queueService;
+    private final UniverseService universeService;
 
-    public UniverseController(QueueService queueService) {
-        this.queueService = queueService;
+    public UniverseController(UniverseService universeService) {
+        this.universeService = universeService;
     }
 
     @Operation(summary = "Get colonies list for given universe",
@@ -38,7 +38,7 @@ public class UniverseController {
     @GetMapping(value = "/universes/{universeId}/colonies")
     public List<Colony> getColoniesList(@Parameter(description = "Universe id")
                                         @PathVariable(value = "universeId") String universeId) {
-        return queueService.getColoniesList(universeId);
+        return universeService.getColoniesList(universeId);
     }
 
     @Operation(summary = "Create new universe",
@@ -58,7 +58,7 @@ public class UniverseController {
     public void createUniverse(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = Universe.class)))
                                @RequestBody @Valid Universe universe) {
-        queueService.createUniverse(universe);
+        universeService.createUniverse(universe);
     }
 
     @Operation(summary = "Delete existing universe",
@@ -77,7 +77,7 @@ public class UniverseController {
     @DeleteMapping(value = "/universes/{universeId}")
     public void deleteColony(@Parameter(description = "Universe id")
                              @PathVariable(value = "universeId") String universeId) {
-        queueService.deleteUniverse(universeId);
+        universeService.deleteUniverse(universeId);
     }
 
     @Operation(summary = "Start universe",
@@ -96,7 +96,7 @@ public class UniverseController {
     @PostMapping(value = "/universes/{universeId}/start")
     public void startUniverse(@Parameter(description = "Universe id")
                               @PathVariable(value = "universeId") String universeId) {
-        queueService.startUniverse(universeId);
+        universeService.startUniverse(universeId);
     }
 
     @Operation(summary = "Stop universe",
@@ -115,7 +115,7 @@ public class UniverseController {
     @PostMapping(value = "/universes/{universeId}/stop")
     public void stopUniverse(@Parameter(description = "Universe id")
                              @PathVariable(value = "universeId") String universeId) {
-        queueService.stopUniverse(universeId);
+        universeService.stopUniverse(universeId);
     }
 
     @Operation(summary = "Get universe",
@@ -135,7 +135,7 @@ public class UniverseController {
     @GetMapping(value = "/universes/{universeId}")
     public Universe getUniverse(@Parameter(description = "Universe id")
                                 @PathVariable(value = "universeId") String universeId) {
-        return queueService.getUniverse(universeId);
+        return universeService.getUniverse(universeId);
     }
 
     @Operation(summary = "Get all registered universes list",
@@ -150,6 +150,6 @@ public class UniverseController {
             })
     @GetMapping(value = "/universes")
     public List<Universe> getUniversesList() {
-        return queueService.getUniversesList();
+        return universeService.getUniversesList();
     }
 }
