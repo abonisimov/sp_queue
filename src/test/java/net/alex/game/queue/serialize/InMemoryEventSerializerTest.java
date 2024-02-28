@@ -2,7 +2,6 @@ package net.alex.game.queue.serialize;
 
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.model.event.GameEvent;
-import net.alex.game.queue.event.FastModeSwitchEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,8 +25,8 @@ class InMemoryEventSerializerTest {
         List<GameEvent> events = new ArrayList<>();
         GameEvent event0 = GameEvent.builder().universeId("1").
                 id("123").delay(5000).timeUnit(TimeUnit.MILLISECONDS).build();
-        GameEvent event1 = FastModeSwitchEvent.builder().universeId("1").
-                id("321").delay(8).timeUnit(TimeUnit.SECONDS).enable(true).build();
+        GameEvent event1 = GameEvent.builder().universeId("1").
+                id("321").delay(8).timeUnit(TimeUnit.SECONDS).build();
         event0.init();
         event1.init();
 
@@ -44,7 +43,7 @@ class InMemoryEventSerializerTest {
         assertNotNull(result);
         assertEquals(2, result.size());
         assertEquals(GameEvent.class, result.get(0).getClass());
-        assertEquals(FastModeSwitchEvent.class, result.get(1).getClass());
+        assertEquals(GameEvent.class, result.get(1).getClass());
         assertNotEquals(startTime0, result.get(0).getStartTime());
         assertNotEquals(startTime1, result.get(1).getStartTime());
         assertTrue(result.get(0).getStartTime() - startTime0 <= 5000);

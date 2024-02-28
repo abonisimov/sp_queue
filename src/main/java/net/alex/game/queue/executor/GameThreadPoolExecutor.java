@@ -1,9 +1,12 @@
 package net.alex.game.queue.executor;
 
 import lombok.extern.slf4j.Slf4j;
+import net.alex.game.queue.event.InitStatisticsEvent;
 import net.alex.game.queue.event.QueueTerminationEvent;
 import net.alex.game.queue.exception.WaitingInterruptedException;
 import net.alex.game.queue.serialize.EventSerializer;
+import net.alex.game.queue.thread.GameEventThread;
+import net.alex.game.queue.thread.GameThreadStats;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -21,6 +24,7 @@ public class GameThreadPoolExecutor extends ThreadPoolExecutor {
             GameEventThread gameEventThread = new GameEventThread(new GameEventExecutor(), loadFactorPrecision);
             activeTasks.add(gameEventThread);
             execute(gameEventThread);
+            gameEventThread.addEvent(InitStatisticsEvent.builder().id(UUID.randomUUID().toString()).build());
         }
     }
 
@@ -28,6 +32,10 @@ public class GameThreadPoolExecutor extends ThreadPoolExecutor {
         return activeTasks.stream().
                 min(Comparator.comparingDouble(e -> e.getStatistics().getMomentaryLoadFactor())).
                 orElseThrow();
+    }
+
+    public List<GameThreadStats> getThreadStatisticsList() {
+        return activeTasks.stream().map(GameEventThread::getStatistics).toList();
     }
 
     public void shutdown(EventSerializer eventSerializer) {
