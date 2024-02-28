@@ -6,11 +6,9 @@ import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.QueueTerminationEvent;
 import net.alex.game.queue.executor.EventExecutor;
 import net.alex.game.queue.serialize.EventSerializer;
-import net.alex.game.queue.serialize.InMemoryEventSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -115,8 +113,6 @@ class GameEventThreadTest {
                 id(UUID.randomUUID().toString()).
                 delay(0).
                 timeUnit(TimeUnit.MILLISECONDS).
-                shutdownLatch(new CountDownLatch(1)).
-                eventSerializer(new InMemoryEventSerializer()).
                 build());
     }
 

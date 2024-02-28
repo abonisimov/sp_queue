@@ -5,16 +5,12 @@ import net.alex.game.model.event.GameEvent;
 import net.alex.game.queue.event.FastModeSwitchEvent;
 import net.alex.game.queue.event.QueueTerminationEvent;
 import net.alex.game.queue.event.SystemEvent;
-import net.alex.game.queue.exception.EventDeclinedException;
 import net.alex.game.queue.executor.EventExecutor;
-import net.alex.game.queue.serialize.EventSerializer;
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
+import java.util.Iterator;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 public class GameEventThread implements Runnable {
@@ -23,7 +19,6 @@ public class GameEventThread implements Runnable {
     private final long loadFactorPrecision;
 
     private final DelayQueue<GameEvent> eventDelayQueue = new DelayQueue<>();
-    private final ReentrantLock lock = new ReentrantLock();
 
     private final AtomicReference<GameThreadStats> statsAtomicReference = new AtomicReference<>(new GameThreadStats());
 
@@ -36,31 +31,25 @@ public class GameEventThread implements Runnable {
     }
 
     public void addEvent(GameEvent event) {
-        boolean lockAcquired = lock.tryLock();
-        if (lockAcquired) {
-            try {
-                event.init();
-                eventDelayQueue.offer(event);
-            } finally {
-                lock.unlock();
-            }
-        } else {
-            log.debug("Queue thread is shutting down, event {} is declined", event.getId());
-            throw new EventDeclinedException();
-        }
+        event.init();
+        eventDelayQueue.offer(event);
     }
 
     public GameThreadStats getStatistics() {
         return statsAtomicReference.get();
     }
 
+    public Iterator<GameEvent> getQueueIterator() {
+        return eventDelayQueue.iterator();
+    }
+
     @Override
     public void run() {
-        CountDownLatch shutdownLatch = null;
-        EventSerializer eventSerializer = null;
         try {
             long startTime = System.currentTimeMillis();
-            loop: for (;;) {
+
+            loop:
+            for (;;) {
                 GameEvent event = fetchEvent();
                 long cycleStartTime = System.currentTimeMillis();
                 logEvent(event);
@@ -68,11 +57,7 @@ public class GameEventThread implements Runnable {
 
                 if (event instanceof SystemEvent) {
                     switch (event) {
-                        case QueueTerminationEvent e -> {
-                            eventSerializer = e.getEventSerializer();
-                            shutdownLatch = e.getShutdownLatch();
-                            break loop;
-                        }
+                        case QueueTerminationEvent e -> { break loop; }
                         case FastModeSwitchEvent e -> switchFastMode(e);
                         default -> {}
                     }
@@ -88,19 +73,7 @@ public class GameEventThread implements Runnable {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
-        } finally {
-            cleanUp(shutdownLatch, eventSerializer);
         }
-    }
-
-    private void updateStats(long startTime, long cycleStartTime, long cycleEndTime, boolean isSuccessCycle) {
-        GameThreadStats newValue;
-        GameThreadStats current;
-        do {
-            current = statsAtomicReference.get();
-            newValue = GameThreadStats.updateStatsAndGet(current, Thread.currentThread().getId(), startTime,
-                    cycleStartTime, cycleEndTime, isSuccessCycle, loadFactorPrecision);
-        } while(!statsAtomicReference.compareAndSet(current, newValue));
     }
 
     private GameEvent fetchEvent() throws InterruptedException {
@@ -123,6 +96,14 @@ public class GameEventThread implements Runnable {
         }
     }
 
+    private void logEvent(GameEvent event) {
+        log.trace("Event {} with id {} fetched with delay {} ms, fast mode - {}",
+                event.getClass().getSimpleName(),
+                event.getId(),
+                event.getDelay(TimeUnit.MILLISECONDS),
+                fastMode);
+    }
+
     private void switchFastMode(FastModeSwitchEvent event) {
         if (event.isEnable() && fastModeTimestamp == -1) {
             fastModeTimestamp = event.getStartTime();
@@ -134,32 +115,13 @@ public class GameEventThread implements Runnable {
         fastMode = event.isEnable();
     }
 
-    private void cleanUp(CountDownLatch shutdownLatch, EventSerializer eventSerializer) {
-        lock.lock();
-        try {
-            if (eventSerializer != null) {
-                eventSerializer.writeEvents(eventDelayQueue.iterator());
-            } else {
-                log.warn("Event serializer is not supplied, queue will not be persisted");
-            }
-        } catch (IOException e) {
-            log.warn("Unable to backup queue because of the following reason:");
-            log.warn(e.getMessage(), e);
-        } finally {
-            eventDelayQueue.clear();
-            log.debug("Queue thread finished");
-            lock.unlock();
-            if (shutdownLatch != null) {
-                shutdownLatch.countDown();
-            }
-        }
-    }
-
-    private void logEvent(GameEvent event) {
-        log.trace("Event {} with id {} fetched with delay {} ms, fast mode - {}",
-                event.getClass().getSimpleName(),
-                event.getId(),
-                event.getDelay(TimeUnit.MILLISECONDS),
-                fastMode);
+    private void updateStats(long startTime, long cycleStartTime, long cycleEndTime, boolean isSuccessCycle) {
+        GameThreadStats newValue;
+        GameThreadStats current;
+        do {
+            current = statsAtomicReference.get();
+            newValue = GameThreadStats.updateStatsAndGet(current, Thread.currentThread().getId(), startTime,
+                    cycleStartTime, cycleEndTime, isSuccessCycle, loadFactorPrecision);
+        } while(!statsAtomicReference.compareAndSet(current, newValue));
     }
 }

@@ -1,4 +1,4 @@
-package net.alex.game.queue;
+package net.alex.game.queue.service;
 
 import net.alex.game.queue.config.ExecutorConfig;
 import net.alex.game.queue.thread.GameThreadStats;
@@ -12,18 +12,18 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class QueueServiceTest {
+class ThreadServiceTest {
 
     @Autowired
-    private QueueService queueService;
+    private ThreadService threadService;
 
     @Autowired
     private ExecutorConfig executorConfig;
 
     @Test
-    //@DirtiesContext
+        //@DirtiesContext
     void testGetThreadStatisticsList() {
-        List<GameThreadStats> result = queueService.getThreadStatisticsList();
+        List<GameThreadStats> result = threadService.getThreadStatisticsList();
         assertNotNull(result);
         assertEquals(executorConfig.poolSize(), result.size());
         result.forEach(Assertions::assertNotNull);
@@ -31,13 +31,14 @@ class QueueServiceTest {
 
     @Test
     void testGetThreadStatistics() {
-        List<GameThreadStats> list = queueService.getThreadStatisticsList();
+        List<GameThreadStats> list = threadService.getThreadStatisticsList();
         assertNotNull(list);
         assertTrue(list.size() > 0);
         long threadId = list.stream().map(GameThreadStats::getThreadId).findAny().orElseThrow();
 
-        GameThreadStats result = queueService.getThreadStatistics(threadId);
+        GameThreadStats result = threadService.getThreadStatistics(threadId);
         assertNotNull(result);
         assertEquals(threadId, result.getThreadId());
     }
+
 }

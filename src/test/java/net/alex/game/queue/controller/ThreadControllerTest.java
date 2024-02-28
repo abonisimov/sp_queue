@@ -1,6 +1,6 @@
 package net.alex.game.queue.controller;
 
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.ThreadService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -24,7 +24,7 @@ class ThreadControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private QueueService service;
+    private ThreadService service;
 
     @Test
     void getThreadStatistics() throws Exception {

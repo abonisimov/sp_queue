@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.alex.game.model.Colony;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.ColonyService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "/v1/api/game")
 public class ColonyController {
 
-    private final QueueService queueService;
+    private final ColonyService colonyService;
 
-    public ColonyController(QueueService queueService) {
-        this.queueService = queueService;
+    public ColonyController(ColonyService colonyService) {
+        this.colonyService = colonyService;
     }
 
     @Operation(summary = "Create new colony in a given universe",
@@ -42,7 +42,7 @@ public class ColonyController {
     public void createColony(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                      schema = @Schema(implementation = Colony.class)))
                              @RequestBody @Valid Colony colony) {
-        queueService.createColony(colony);
+        colonyService.createColony(colony);
     }
 
     @Operation(summary = "Delete existing colony from a given universe",
@@ -61,7 +61,7 @@ public class ColonyController {
     @DeleteMapping(value = "/colonies/{colonyId}")
     public void deleteColony(@Parameter(description = "Colony id")
                              @PathVariable(value = "colonyId") String colonyId) {
-        queueService.deleteColony(colonyId);
+        colonyService.deleteColony(colonyId);
     }
 
     @Operation(summary = "Get colony by id",
@@ -77,6 +77,6 @@ public class ColonyController {
     @GetMapping(value = "/colonies/{colonyId}")
     public Colony getColony(@Parameter(description = "Colony id")
                             @PathVariable(value = "colonyId") String colonyId) {
-        return queueService.getColony(colonyId);
+        return colonyService.getColony(colonyId);
     }
 }

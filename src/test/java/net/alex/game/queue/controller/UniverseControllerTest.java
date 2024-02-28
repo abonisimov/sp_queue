@@ -2,7 +2,7 @@ package net.alex.game.queue.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.alex.game.model.Universe;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.UniverseService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -30,7 +30,7 @@ class UniverseControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private QueueService service;
+    private UniverseService service;
 
     @Test
     void getColoniesList() throws Exception {

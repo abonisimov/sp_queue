@@ -1,7 +1,7 @@
 package net.alex.game.queue.controller;
 
 import net.alex.game.model.event.GameEvent;
-import net.alex.game.queue.QueueService;
+import net.alex.game.queue.service.EventService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -24,7 +24,7 @@ class EventControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockBean
-    private QueueService service;
+    private EventService service;
 
     @Test
     void addEvent() throws Exception {

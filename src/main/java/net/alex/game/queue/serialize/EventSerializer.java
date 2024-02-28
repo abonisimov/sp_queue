@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 public abstract class EventSerializer {
 
     public void readEvents(Consumer<GameEvent> consumer) throws IOException {
-        log.debug("Reading events to queue");
+        log.info("Reading events to queue");
         List<String> eventJsonList = readFromDataStore();
         for (String json : eventJsonList) {
             GameEvent event;
@@ -31,7 +31,7 @@ public abstract class EventSerializer {
     }
 
     public void writeEvents(Iterator<GameEvent> iterator) throws IOException {
-        log.debug("Writing events from queue");
+        log.info("Writing events from queue");
         long currentTimeMillis = System.currentTimeMillis();
         List<String> events = new ArrayList<>();
         while (iterator.hasNext()) {
