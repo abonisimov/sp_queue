@@ -24,6 +24,7 @@ public class GameThreadPoolExecutor extends ThreadPoolExecutor {
 
     private final long loadFactorPrecision;
     private final EventSerializer eventSerializer;
+    private final Random random = new Random();
 
     public GameThreadPoolExecutor(int corePoolSize,
                                   long loadFactorPrecision,
@@ -47,7 +48,7 @@ public class GameThreadPoolExecutor extends ThreadPoolExecutor {
     private void startUp() {
         try {
             startAllThreads();
-            eventSerializer.readEvents(event -> getVacantThread().addEvent(event));
+            eventSerializer.readEvents(event -> activeTasks.get(random.nextInt(activeTasks.size())).addEvent(event));
         } catch (IOException e) {
             log.warn("Unable to restore events from the database");
             log.warn(e.getMessage(), e);

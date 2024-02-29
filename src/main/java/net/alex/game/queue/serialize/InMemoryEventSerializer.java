@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Slf4j
-@Component
+@Component("InMemoryEventSerializer")
 public class InMemoryEventSerializer extends EventSerializer {
 
     private static final List<String> STORE = Collections.synchronizedList(new ArrayList<>());

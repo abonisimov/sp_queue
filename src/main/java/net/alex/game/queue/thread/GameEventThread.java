@@ -48,7 +48,6 @@ public class GameEventThread implements Runnable {
         try {
             long startTime = System.currentTimeMillis();
 
-            loop:
             for (;;) {
                 GameEvent event = fetchEvent();
                 long cycleStartTime = System.currentTimeMillis();
@@ -56,10 +55,10 @@ public class GameEventThread implements Runnable {
                 boolean result = true;
 
                 if (event instanceof SystemEvent) {
-                    switch (event) {
-                        case QueueTerminationEvent e -> { break loop; }
-                        case FastModeSwitchEvent e -> switchFastMode(e);
-                        default -> {}
+                    if (event instanceof QueueTerminationEvent) {
+                        break;
+                    } else if (event instanceof FastModeSwitchEvent fastModeSwitchEvent) {
+                        switchFastMode(fastModeSwitchEvent);
                     }
                 } else {
                     result = eventExecutor.executeEvent(event);
