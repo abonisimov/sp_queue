@@ -3,6 +3,15 @@ logging:
     root: INFO
     net.alex.game.queue: INFO
 
+spring:
+  jpa:
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/changelog.sql
+
 executor:
   poolSize: 10
   loadFactorPrecision: 100
+
+serializer:
+  implementation: PostgresqlEventSerializer

@@ -12,6 +12,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -106,7 +107,7 @@ class GameEventThreadTest {
         GameEventThread thread = new GameEventThread(eventExecutor, 10);
         new Thread(thread).start();
         events.forEach(thread::addEvent);
-        Thread.sleep(waitTime);
+        await().atMost(waitTime, TimeUnit.MILLISECONDS).until(() -> !thread.getQueueIterator().hasNext());
         thread.addEvent(QueueTerminationEvent.
                 builder().
                 universeId("1").
