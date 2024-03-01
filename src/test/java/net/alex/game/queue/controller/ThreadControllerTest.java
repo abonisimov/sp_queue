@@ -36,7 +36,8 @@ class ThreadControllerTest {
     @Test
     void getThreadStatisticsList() throws Exception {
         doReturn(Collections.emptyList()).when(service).getThreadStatisticsList();
-        mockMvc.perform(get("/v1/api/game/threads").contentType(MediaType.APPLICATION_JSON)).
+        mockMvc.perform(get("/v1/api/game/threads").contentType(MediaType.APPLICATION_JSON).
+                        header("Authorization", "test")).
                 andDo(print()).andExpect(status().isOk());
     }
 }

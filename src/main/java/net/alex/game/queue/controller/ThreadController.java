@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.alex.game.queue.service.ThreadService;
 import net.alex.game.queue.thread.GameThreadStats;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +58,7 @@ public class ThreadController {
                     )
             })
     @GetMapping(value = "/threads")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public List<GameThreadStats> getThreadStatisticsList() {
         return threadService.getThreadStatisticsList();
     }

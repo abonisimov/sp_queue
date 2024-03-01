@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.exception.HttpStatusMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,6 +45,18 @@ public class ErrorHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(errorBody);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> onError(AccessDeniedException error) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAuthenticated = !(authentication instanceof AnonymousAuthenticationToken);
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put(MESSAGE, isAuthenticated ? error.getMessage() : "Authentication is required");
+        return ResponseEntity
+                .status(isAuthenticated ? HttpStatus.FORBIDDEN.value() : HttpStatus.UNAUTHORIZED.value())
                 .body(errorBody);
     }
 
