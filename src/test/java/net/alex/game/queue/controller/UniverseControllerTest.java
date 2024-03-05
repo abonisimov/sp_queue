@@ -36,7 +36,8 @@ class UniverseControllerTest {
     void getColoniesList() throws Exception {
         doReturn(Collections.emptyList()).when(service).getColoniesList(anyString());
         mockMvc.perform(get("/v1/api/game/universes/1/colonies").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
@@ -45,14 +46,16 @@ class UniverseControllerTest {
         mockMvc.perform(post("/v1/api/game/universes").
                         contentType(MediaType.APPLICATION_JSON).
                         content(MAPPER.writeValueAsString(Universe.builder().build()))).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
     void deleteUniverse() throws Exception {
         doNothing().when(service).deleteUniverse(anyString());
         mockMvc.perform(delete("/v1/api/game/universes/1").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
@@ -60,7 +63,8 @@ class UniverseControllerTest {
         doNothing().when(service).startUniverse(any());
         mockMvc.perform(post("/v1/api/game/universes/1/start").
                         contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
@@ -68,20 +72,23 @@ class UniverseControllerTest {
         doNothing().when(service).stopUniverse(any());
         mockMvc.perform(post("/v1/api/game/universes/1/stop").
                         contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
     void getUniverse() throws Exception {
         doReturn(null).when(service).getUniverse(anyString());
         mockMvc.perform(get("/v1/api/game/universes/1").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
     void getUniverseList() throws Exception {
         doReturn(Collections.emptyList()).when(service).getUniversesList();
         mockMvc.perform(get("/v1/api/game/universes").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 }

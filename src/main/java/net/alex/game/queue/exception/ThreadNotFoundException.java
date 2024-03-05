@@ -1,5 +1,7 @@
 package net.alex.game.queue.exception;
 
+import net.alex.game.queue.annotation.HttpStatusMapping;
+
 import java.io.Serial;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;

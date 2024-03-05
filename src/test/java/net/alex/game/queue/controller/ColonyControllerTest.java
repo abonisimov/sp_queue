@@ -36,20 +36,23 @@ class ColonyControllerTest {
         mockMvc.perform(post("/v1/api/game/colonies").
                         contentType(MediaType.APPLICATION_JSON).
                         content(MAPPER.writeValueAsString(Colony.builder().build()))).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
     void deleteColony() throws Exception {
         doNothing().when(service).deleteColony(anyString());
         mockMvc.perform(delete("/v1/api/game/colonies/1").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 
     @Test
     void getColony() throws Exception {
         doReturn(null).when(service).getColony(anyString());
         mockMvc.perform(get("/v1/api/game/colonies/1").contentType(MediaType.APPLICATION_JSON)).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 }

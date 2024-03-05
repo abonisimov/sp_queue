@@ -1,6 +1,9 @@
 package net.alex.game.queue.persistence.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.Hibernate;
 
@@ -8,6 +11,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Objects;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @ToString
 @Entity
 @Table(name = "token")
@@ -16,7 +22,7 @@ public class TokenEntity {
     private static final int EXPIRATION = 60 * 24;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String token;
@@ -26,10 +32,6 @@ public class TokenEntity {
     private UserEntity user;
 
     private Date expiryDate;
-
-    public TokenEntity() {
-        super();
-    }
 
     public TokenEntity(final String token) {
         super();
@@ -44,34 +46,6 @@ public class TokenEntity {
         this.token = token;
         this.user = user;
         this.expiryDate = calculateExpiryDate(EXPIRATION);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(final String token) {
-        this.token = token;
-    }
-
-    public UserEntity getUser() {
-        return user;
-    }
-
-    public void setUser(final UserEntity user) {
-        this.user = user;
-    }
-
-    public Date getExpiryDate() {
-        return expiryDate;
-    }
-
-    public void setExpiryDate(final Date expiryDate) {
-        this.expiryDate = expiryDate;
     }
 
     private Date calculateExpiryDate(final int expiryTimeInMinutes) {

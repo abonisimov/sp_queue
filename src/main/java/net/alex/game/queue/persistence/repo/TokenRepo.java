@@ -7,13 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.Date;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface TokenRepo extends CrudRepository<TokenEntity, Long> {
 
-    TokenEntity findByToken(String token);
+    Optional<TokenEntity> findByToken(String token);
 
-    TokenEntity findByUser(UserEntity user);
+    Optional<TokenEntity> findByUser(UserEntity user);
 
     Stream<TokenEntity> findAllByExpiryDateLessThan(Date now);
 

@@ -8,10 +8,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class AccessTokenService {
 
-    private static final String AUTH_TOKEN_HEADER_NAME = "Authorization";
+    public static final String AUTH_TOKEN_HEADER_NAME = "Authorization";
 
     private final TokenRepo tokenRepo;
 
@@ -19,16 +21,17 @@ public class AccessTokenService {
         this.tokenRepo = tokenRepo;
     }
 
-    public Authentication getAuthentication(HttpServletRequest request) {
+    public Optional<Authentication> getAuthentication(HttpServletRequest request) {
         String token = request.getHeader(AUTH_TOKEN_HEADER_NAME);
+        Authentication authentication = null;
         if (StringUtils.isNotBlank(token)) {
-            TokenEntity tokenEntity = tokenRepo.findByToken(token);
-            if (tokenEntity != null) {
-                return new ApiKeyAuthentication(token,
-                        tokenEntity.getUser().getRoles().stream().
+            Optional<TokenEntity> tokenEntity = tokenRepo.findByToken(token);
+            if (tokenEntity.isPresent()) {
+                authentication = new ApiKeyAuthentication(token,
+                        tokenEntity.get().getUser().getRoles().stream().
                                 map(r -> (GrantedAuthority) r::getName).toList());
             }
         }
-        return null;
+        return Optional.ofNullable(authentication);
     }
 }

@@ -2,13 +2,15 @@ package net.alex.game.queue.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.queue.exception.HttpStatusMapping;
+import net.alex.game.queue.annotation.HttpStatusMapping;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,10 +31,20 @@ public class ErrorHandler {
     public ResponseEntity<Map<String, Object>> onError(MethodArgumentNotValidException error) {
         Map<String, Object> errorBody = new HashMap<>();
 
-        errorBody.put(MESSAGE, error.toString());
+        error.getBindingResult().getAllErrors().forEach(e -> {
+            String name;
+            if (e instanceof FieldError fieldError) {
+                name = fieldError.getField();
+            } else {
+                name = e.getObjectName();
+            }
+            String errorMessage = e.getDefaultMessage();
+            errorBody.put(name, errorMessage);
+        });
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(errorBody);
     }
 
@@ -45,6 +57,7 @@ public class ErrorHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(errorBody);
     }
 
@@ -57,6 +70,7 @@ public class ErrorHandler {
         errorBody.put(MESSAGE, isAuthenticated ? error.getMessage() : "Authentication is required");
         return ResponseEntity
                 .status(isAuthenticated ? HttpStatus.FORBIDDEN.value() : HttpStatus.UNAUTHORIZED.value())
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(errorBody);
     }
 
@@ -67,7 +81,9 @@ public class ErrorHandler {
         errorBody.put(MESSAGE, error.toString());
 
         if (error.getClass().isAnnotationPresent(HttpStatusMapping.class)) {
-            return ResponseEntity.status(error.getClass().getAnnotation(HttpStatusMapping.class).status())
+            return ResponseEntity
+                    .status(error.getClass().getAnnotation(HttpStatusMapping.class).status())
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(errorBody);
         } else {
             String uri = null;
@@ -81,6 +97,7 @@ public class ErrorHandler {
 
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(errorBody);
         }
     }

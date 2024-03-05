@@ -32,6 +32,7 @@ class EventControllerTest {
         mockMvc.perform(post("/v1/api/game/events").
                         contentType(MediaType.APPLICATION_JSON).
                         content(toJSON(GameEvent.builder().id("1").build()))).
-                andDo(print()).andExpect(status().isOk());
+                andDo(print()).
+                andExpect(status().isOk());
     }
 }

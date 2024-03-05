@@ -38,10 +38,10 @@ public class ThreadController {
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No thread exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @GetMapping(value = "/threads/{threadId}")
+    @GetMapping(value = "/threads/{threadId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public GameThreadStats getThreadStatistics(@Parameter(description = "Thread id")
                                                @PathVariable(value = "threadId") long threadId) {
         return threadService.getThreadStatistics(threadId);
@@ -57,8 +57,9 @@ public class ThreadController {
                                     array = @ArraySchema(schema = @Schema(implementation = GameThreadStats.class)))
                     )
             })
-    @GetMapping(value = "/threads")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @GetMapping(value = "/threads", produces = MediaType.APPLICATION_JSON_VALUE)
+    //@PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('USER')")
     public List<GameThreadStats> getThreadStatisticsList() {
         return threadService.getThreadStatisticsList();
     }
