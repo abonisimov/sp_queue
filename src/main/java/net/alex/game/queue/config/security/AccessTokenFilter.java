@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Slf4j
 public class AccessTokenFilter extends GenericFilterBean {
@@ -25,10 +26,8 @@ public class AccessTokenFilter extends GenericFilterBean {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
             throws IOException, ServletException {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
-        Authentication authentication = accessTokenService.getAuthentication(httpServletRequest);
-        if (authentication != null) {
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+        Optional<Authentication> authentication = accessTokenService.getAuthentication(httpServletRequest);
+        authentication.ifPresent(value -> SecurityContextHolder.getContext().setAuthentication(value));
         filterChain.doFilter(request, response);
     }
 }

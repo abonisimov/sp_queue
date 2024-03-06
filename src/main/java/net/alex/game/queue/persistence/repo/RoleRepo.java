@@ -3,11 +3,9 @@ package net.alex.game.queue.persistence.repo;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import org.springframework.data.repository.CrudRepository;
 
+import java.util.Optional;
+
 public interface RoleRepo extends CrudRepository<RoleEntity, Long> {
-
-    RoleEntity findByName(String name);
-
-    @Override
-    void delete(RoleEntity role);
-
+    Optional<RoleEntity> findByName(String name);
+    Optional<RoleEntity> findByNameAndResourceId(String name, Long resourceId);
 }

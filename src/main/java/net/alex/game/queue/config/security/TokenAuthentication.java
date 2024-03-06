@@ -7,22 +7,26 @@ import org.springframework.security.core.GrantedAuthority;
 import java.util.Collection;
 
 @EqualsAndHashCode(callSuper = true)
-public class ApiKeyAuthentication extends AbstractAuthenticationToken {
-    private final String apiKey;
+public class TokenAuthentication extends AbstractAuthenticationToken {
+    private final PrincipalData principal;
+    private final String token;
 
-    public ApiKeyAuthentication(String apiKey, Collection<? extends GrantedAuthority> authorities) {
+    public TokenAuthentication(PrincipalData principal,
+                               String token,
+                               Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
-        this.apiKey = apiKey;
+        this.principal = principal;
+        this.token = token;
         setAuthenticated(true);
     }
 
     @Override
     public Object getCredentials() {
-        return null;
+        return token;
     }
 
     @Override
     public Object getPrincipal() {
-        return apiKey;
+        return principal;
     }
 }

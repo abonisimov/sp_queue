@@ -35,7 +35,7 @@ public class UniverseController {
                                     array = @ArraySchema(schema = @Schema(implementation = Colony.class)))
                     )
             })
-    @GetMapping(value = "/universes/{universeId}/colonies")
+    @GetMapping(value = "/universes/{universeId}/colonies", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Colony> getColoniesList(@Parameter(description = "Universe id")
                                         @PathVariable(value = "universeId") String universeId) {
         return universeService.getColoniesList(universeId);
@@ -47,14 +47,14 @@ public class UniverseController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Universe successfully created",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "409",
                             description = "Universe already exists",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/universes")
+    @PostMapping(value = "/universes", produces = MediaType.APPLICATION_JSON_VALUE)
     public void createUniverse(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = Universe.class)))
                                @RequestBody @Valid Universe universe) {
@@ -67,15 +67,15 @@ public class UniverseController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Universe successfully deleted",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No universe exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @DeleteMapping(value = "/universes/{universeId}")
-    public void deleteColony(@Parameter(description = "Universe id")
+    @DeleteMapping(value = "/universes/{universeId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void deleteUniverse(@Parameter(description = "Universe id")
                              @PathVariable(value = "universeId") String universeId) {
         universeService.deleteUniverse(universeId);
     }
@@ -86,14 +86,14 @@ public class UniverseController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Universe successfully started",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "409",
                             description = "Universe was already running",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/universes/{universeId}/start")
+    @PostMapping(value = "/universes/{universeId}/start", produces = MediaType.APPLICATION_JSON_VALUE)
     public void startUniverse(@Parameter(description = "Universe id")
                               @PathVariable(value = "universeId") String universeId) {
         universeService.startUniverse(universeId);
@@ -105,14 +105,14 @@ public class UniverseController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Universe successfully stopped",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "409",
                             description = "Universe was not running",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/universes/{universeId}/stop")
+    @PostMapping(value = "/universes/{universeId}/stop", produces = MediaType.APPLICATION_JSON_VALUE)
     public void stopUniverse(@Parameter(description = "Universe id")
                              @PathVariable(value = "universeId") String universeId) {
         universeService.stopUniverse(universeId);
@@ -129,10 +129,10 @@ public class UniverseController {
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No universe exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @GetMapping(value = "/universes/{universeId}")
+    @GetMapping(value = "/universes/{universeId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Universe getUniverse(@Parameter(description = "Universe id")
                                 @PathVariable(value = "universeId") String universeId) {
         return universeService.getUniverse(universeId);
@@ -148,7 +148,7 @@ public class UniverseController {
                                     array = @ArraySchema(schema = @Schema(implementation = Universe.class)))
                     )
             })
-    @GetMapping(value = "/universes")
+    @GetMapping(value = "/universes", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Universe> getUniversesList() {
         return universeService.getUniversesList();
     }

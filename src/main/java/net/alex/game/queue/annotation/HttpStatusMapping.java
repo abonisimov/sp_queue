@@ -1,4 +1,4 @@
-package net.alex.game.queue.exception;
+package net.alex.game.queue.annotation;
 
 import org.springframework.http.HttpStatus;
 

@@ -27,18 +27,18 @@ public class ColonyController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Colony successfully created",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No universe exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "409",
                             description = "Colony already exists",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/colonies")
+    @PostMapping(value = "/colonies", produces = MediaType.APPLICATION_JSON_VALUE)
     public void createColony(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                      schema = @Schema(implementation = Colony.class)))
                              @RequestBody @Valid Colony colony) {
@@ -51,14 +51,14 @@ public class ColonyController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Colony successfully deleted",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No colony exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @DeleteMapping(value = "/colonies/{colonyId}")
+    @DeleteMapping(value = "/colonies/{colonyId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public void deleteColony(@Parameter(description = "Colony id")
                              @PathVariable(value = "colonyId") String colonyId) {
         colonyService.deleteColony(colonyId);
@@ -69,12 +69,12 @@ public class ColonyController {
             method = "GET",
             responses = {
                     @ApiResponse(responseCode = "200",
-                            description = "Colonies list successfully retrieved",
+                            description = "Colony successfully retrieved",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                     schema = @Schema(implementation = Colony.class))
                     )
             })
-    @GetMapping(value = "/colonies/{colonyId}")
+    @GetMapping(value = "/colonies/{colonyId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public Colony getColony(@Parameter(description = "Colony id")
                             @PathVariable(value = "colonyId") String colonyId) {
         return colonyService.getColony(colonyId);

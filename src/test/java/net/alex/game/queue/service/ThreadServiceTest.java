@@ -21,7 +21,6 @@ class ThreadServiceTest {
     private ExecutorConfig executorConfig;
 
     @Test
-        //@DirtiesContext
     void testGetThreadStatisticsList() {
         List<GameThreadStats> result = threadService.getThreadStatisticsList();
         assertNotNull(result);

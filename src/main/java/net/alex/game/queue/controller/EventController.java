@@ -30,14 +30,14 @@ public class EventController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Event successfully added",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
                             description = "No universe or colony exists with a given id",
-                            content = @Content
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/events")
+    @PostMapping(value = "/events", produces = MediaType.APPLICATION_JSON_VALUE)
     public void addEvent(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                  schema = @Schema(implementation = GameEvent.class)))
                          @RequestBody @Valid GameEvent event) {
