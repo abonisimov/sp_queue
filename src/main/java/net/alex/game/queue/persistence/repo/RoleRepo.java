@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface RoleRepo extends CrudRepository<RoleEntity, Long> {
     Optional<RoleEntity> findByName(String name);
+    Optional<RoleEntity> findByNameAndResourceId(String name, Long resourceId);
 }

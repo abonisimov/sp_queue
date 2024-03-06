@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import net.alex.game.queue.service.ThreadService;
 import net.alex.game.queue.thread.GameThreadStats;
 import org.springframework.http.MediaType;
@@ -50,16 +51,24 @@ public class ThreadController {
     @Operation(summary = "Get current statistics",
             tags = {"thread"},
             method = "GET",
+            security = @SecurityRequirement(name = "api_key", scopes = { "ADMIN" }),
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Thread statistics list successfully retrieved",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                     array = @ArraySchema(schema = @Schema(implementation = GameThreadStats.class)))
+                    ),
+                    @ApiResponse(responseCode = "401",
+                            description = "Invalid credentials",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "403",
+                            description = "Access denied, account is blocked or data is restricted",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
     @GetMapping(value = "/threads", produces = MediaType.APPLICATION_JSON_VALUE)
-    //@PreAuthorize("hasAuthority('ADMIN')")
-    @PreAuthorize("hasAuthority('USER')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public List<GameThreadStats> getThreadStatisticsList() {
         return threadService.getThreadStatisticsList();
     }

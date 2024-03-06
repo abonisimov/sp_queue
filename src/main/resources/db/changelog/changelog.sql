@@ -32,17 +32,9 @@ CREATE TABLE users_roles
     user_id BIGINT NOT NULL
 );
 
-ALTER TABLE user_account
-    ADD CONSTRAINT uc_user_account_id UNIQUE (id);
-
-ALTER TABLE users_roles
-    ADD CONSTRAINT uc_users_roles_user UNIQUE (user_id);
-
-ALTER TABLE users_roles
-    ADD CONSTRAINT fk_userol_on_role FOREIGN KEY (role_id) REFERENCES role (id) ON DELETE CASCADE;
-
-ALTER TABLE users_roles
-    ADD CONSTRAINT fk_userol_on_user FOREIGN KEY (user_id) REFERENCES user_account (id) ON DELETE CASCADE;
+ALTER TABLE users_roles ADD CONSTRAINT fk_userol_on_role FOREIGN KEY (role_id) REFERENCES role (id) ON DELETE CASCADE;
+ALTER TABLE users_roles ADD CONSTRAINT fk_userol_on_user FOREIGN KEY (user_id) REFERENCES user_account (id) ON DELETE CASCADE;
+ALTER TABLE users_roles ADD CONSTRAINT uc_users_roles_userId_roleId UNIQUE (user_id, role_id);
 
 CREATE TABLE token
 (

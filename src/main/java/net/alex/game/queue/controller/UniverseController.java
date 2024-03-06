@@ -75,7 +75,7 @@ public class UniverseController {
                     )
             })
     @DeleteMapping(value = "/universes/{universeId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void deleteColony(@Parameter(description = "Universe id")
+    public void deleteUniverse(@Parameter(description = "Universe id")
                              @PathVariable(value = "universeId") String universeId) {
         universeService.deleteUniverse(universeId);
     }
