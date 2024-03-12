@@ -1,11 +1,15 @@
 package net.alex.game.queue.persistence.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.Hibernate;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -13,8 +17,11 @@ import java.util.Objects;
 @Setter
 @ToString
 @Entity
-@Table(name = "token")
-public class TokenEntity {
+@Table(name = "access_token")
+public class AccessTokenEntity implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 5565423312020725844L;
 
     private static final int TOKEN_TTL_DAYS = 30;
 
@@ -22,19 +29,22 @@ public class TokenEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull
+    @Size(max=50)
     private String token;
 
     @OneToOne(targetEntity = UserEntity.class, fetch = FetchType.EAGER)
-    @JoinColumn(nullable = false, name = "user_id", foreignKey = @ForeignKey(name = "FK_VERIFY_USER"))
+    @JoinColumn(nullable = false, name = "user_id", foreignKey = @ForeignKey(name = "fk_access_token_on_user"))
     private UserEntity user;
 
+    @NotNull
     private LocalDateTime expiryDate;
 
-    public TokenEntity() {
+    public AccessTokenEntity() {
         this.expiryDate = calculateExpiryDate();
     }
 
-    public TokenEntity(final String token, final UserEntity user) {
+    public AccessTokenEntity(final String token, final UserEntity user) {
         this.token = token;
         this.user = user;
         this.expiryDate = calculateExpiryDate();
@@ -53,7 +63,7 @@ public class TokenEntity {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        TokenEntity that = (TokenEntity) o;
+        AccessTokenEntity that = (AccessTokenEntity) o;
         return id != null && Objects.equals(id, that.id);
     }
 

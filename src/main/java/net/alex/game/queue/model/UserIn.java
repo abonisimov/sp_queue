@@ -12,14 +12,14 @@ import net.alex.game.queue.annotation.ValidEmail;
 @SuperBuilder(toBuilder = true)
 public class UserIn {
     @NotNull(message = "First name is mandatory")
-    @Size(min = 2, max=255, message = "First name length must be greater than {min} and less than {max}")
+    @Size(min = 2, max=50, message = "First name length must be greater than {min} and less than {max}")
     private String firstName;
 
     @NotNull(message = "Last name is mandatory")
-    @Size(min = 2, max=255, message = "Last name length must be greater than {min} and less than {max}")
+    @Size(min = 2, max=50, message = "Last name length must be greater than {min} and less than {max}")
     private String lastName;
 
-    @Size(min = 4, max=255, message = "Nick name length must be greater than {min} and less than {max}")
+    @Size(min = 4, max=50, message = "Nick name length must be greater than {min} and less than {max}")
     private String nickName;
 
     @ValidEmail

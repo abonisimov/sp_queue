@@ -5,9 +5,11 @@ import net.alex.game.queue.AbstractUserTest;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.exception.InvalidCredentialsException;
 import net.alex.game.queue.exception.ResourceNotFoundException;
+import net.alex.game.queue.exception.TokenExpiredException;
 import net.alex.game.queue.model.*;
+import net.alex.game.queue.persistence.entity.AccessTokenEntity;
+import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
-import net.alex.game.queue.persistence.entity.TokenEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +54,7 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(1, result.getRoles().size());
         assertEquals("USER", result.getRoles().get(0).getName());
 
-        Optional<TokenEntity> tokenEntity = getTokenEntityByUserId(result.getId());
+        Optional<AccessTokenEntity> tokenEntity = getTokenEntityByUserId(result.getId());
         assertTrue(tokenEntity.isPresent());
     }
 
@@ -60,7 +62,7 @@ class UserServiceTest extends AbstractUserTest {
     void login() {
         UserOut userOut = registerUser();
 
-        Optional<TokenEntity> tokenEntity = getTokenEntityByUserId(userOut.getId());
+        Optional<AccessTokenEntity> tokenEntity = getTokenEntityByUserId(userOut.getId());
         LocalDateTime expiryDate = tokenEntity.orElseThrow().getExpiryDate();
 
         CredentialsIn credentials = CredentialsIn.builder().email(userOut.getEmail()).
@@ -126,7 +128,7 @@ class UserServiceTest extends AbstractUserTest {
 
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userOut.getId());
         assertTrue(optionalUserEntity.isPresent());
-        Optional<TokenEntity> optionalTokenEntity = tokenRepo.findByUser(optionalUserEntity.get());
+        Optional<AccessTokenEntity> optionalTokenEntity = accessTokenRepo.findByUser(optionalUserEntity.get());
         assertTrue(optionalTokenEntity.isPresent());
 
         String password = optionalUserEntity.get().getPassword();
@@ -136,7 +138,7 @@ class UserServiceTest extends AbstractUserTest {
 
         optionalUserEntity = userRepo.findById(userOut.getId());
         assertTrue(optionalUserEntity.isPresent());
-        optionalTokenEntity = tokenRepo.findByUser(optionalUserEntity.get());
+        optionalTokenEntity = accessTokenRepo.findByUser(optionalUserEntity.get());
         assertTrue(optionalTokenEntity.isPresent());
 
         assertNotEquals(password, optionalUserEntity.get().getPassword());
@@ -206,7 +208,7 @@ class UserServiceTest extends AbstractUserTest {
         userService.deleteUser(userId);
 
         assertTrue(userRepo.findById(userId).isEmpty());
-        assertFalse(tokenRepo.findAll().iterator().hasNext());
+        assertFalse(accessTokenRepo.findAll().iterator().hasNext());
         assertTrue(roleRepo.findAll().iterator().hasNext());
     }
 
@@ -275,9 +277,9 @@ class UserServiceTest extends AbstractUserTest {
     @Test
     void isTokenValid_expired() {
         String token = createTokenByRoleName("USER");
-        TokenEntity tokenEntity = tokenRepo.findByToken(token).orElseThrow();
-        tokenEntity.setExpiryDate(LocalDateTime.now().minusMinutes(1));
-        tokenRepo.save(tokenEntity);
+        AccessTokenEntity accessTokenEntity = accessTokenRepo.findByToken(token).orElseThrow();
+        accessTokenEntity.setExpiryDate(LocalDateTime.now().minusMinutes(1));
+        accessTokenRepo.save(accessTokenEntity);
         MockHttpServletResponse response = new MockHttpServletResponse();
         assertFalse(userService.isTokenValid(token, response));
         assertFalse(response.containsHeader(AUTH_TOKEN_HEADER_NAME));
@@ -286,8 +288,8 @@ class UserServiceTest extends AbstractUserTest {
     @Test
     void isTokenValid_userBlocked() {
         String token = createTokenByRoleName("USER");
-        TokenEntity tokenEntity = tokenRepo.findByToken(token).orElseThrow();
-        UserEntity userEntity = tokenEntity.getUser();
+        AccessTokenEntity accessTokenEntity = accessTokenRepo.findByToken(token).orElseThrow();
+        UserEntity userEntity = accessTokenEntity.getUser();
         userEntity.setEnabled(false);
         userRepo.save(userEntity);
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -296,11 +298,11 @@ class UserServiceTest extends AbstractUserTest {
     }
 
     @Test
-    void restorePassword() {
+    void restorePassword_with_confirmation() {
         UserOut userOut = registerUser();
 
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
-        TokenEntity tokenEntity = tokenRepo.findByUser(userEntity).orElseThrow();
+        AccessTokenEntity tokenEntity = accessTokenRepo.findByUser(userEntity).orElseThrow();
 
         String password = userEntity.getPassword();
         String token = tokenEntity.getToken();
@@ -308,10 +310,53 @@ class UserServiceTest extends AbstractUserTest {
         userService.restorePassword(userOut.getEmail());
 
         userEntity = userRepo.findById(userOut.getId()).orElseThrow();
-        tokenEntity = tokenRepo.findByUser(userEntity).orElseThrow();
+        RestorePasswordTokenEntity restorePasswordTokenEntity = restorePasswordTokenRepo.
+                findByUser(userEntity).orElseThrow();
+
+        assertNotNull(restorePasswordTokenEntity.getToken());
+        assertNotNull(restorePasswordTokenEntity.getExpiryTime());
+
+        userService.confirmRestorePassword(
+                restorePasswordTokenEntity.getToken(),
+                PasswordIn.
+                        builder().
+                        password(VALID_PASSWORD + "1").
+                        matchingPassword(VALID_PASSWORD + "1").
+                        build());
+
+        userEntity = userRepo.findById(userOut.getId()).orElseThrow();
+        tokenEntity = accessTokenRepo.findByUser(userEntity).orElseThrow();
 
         assertNotEquals(password, userEntity.getPassword());
         assertNotEquals(token, tokenEntity.getToken());
+    }
+
+    @Test
+    void confirmRestorePassword_token_expired() {
+        UserOut userOut = registerUser();
+        UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
+
+        saveRestorePasswordToken("token", userEntity, LocalDateTime.now().minusMinutes(1));
+
+        PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
+        assertThrows(TokenExpiredException.class, () -> userService.confirmRestorePassword("token", passwordIn));
+    }
+
+    @Test
+    void confirmRestorePassword_disabled_user() {
+        UserOut userOut = registerDisabledUser();
+        UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
+
+        saveRestorePasswordToken("token", userEntity, LocalDateTime.now().plusHours(1));
+
+        PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
+        assertThrows(AccessRestrictedException.class, () -> userService.confirmRestorePassword("token", passwordIn));
+    }
+
+    @Test
+    void confirmRestorePassword_token_not_found() {
+        PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
+        assertThrows(ResourceNotFoundException.class, () -> userService.confirmRestorePassword("token", passwordIn));
     }
 
     @Test
@@ -347,9 +392,9 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(roleEntity, roleEntity2);
     }
 
-    private Optional<TokenEntity> getTokenEntityByUserId(long userId) {
+    private Optional<AccessTokenEntity> getTokenEntityByUserId(long userId) {
         UserEntity userEntity = new UserEntity();
         userEntity.setId(userId);
-        return tokenRepo.findByUser(userEntity);
+        return accessTokenRepo.findByUser(userEntity);
     }
 }

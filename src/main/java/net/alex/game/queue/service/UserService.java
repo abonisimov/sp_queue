@@ -6,17 +6,17 @@ import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.exception.InvalidCredentialsException;
 import net.alex.game.queue.exception.ResourceNotFoundException;
+import net.alex.game.queue.exception.TokenExpiredException;
 import net.alex.game.queue.model.*;
+import net.alex.game.queue.persistence.entity.AccessTokenEntity;
+import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
-import net.alex.game.queue.persistence.entity.TokenEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
+import net.alex.game.queue.persistence.repo.AccessTokenRepo;
+import net.alex.game.queue.persistence.repo.RestorePasswordTokenRepo;
 import net.alex.game.queue.persistence.repo.RoleRepo;
-import net.alex.game.queue.persistence.repo.TokenRepo;
 import net.alex.game.queue.persistence.repo.UserRepo;
 import org.apache.commons.lang3.StringUtils;
-import org.passay.CharacterRule;
-import org.passay.EnglishCharacterData;
-import org.passay.PasswordGenerator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,9 +24,12 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Optional;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
+import static net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity.TOKEN_TTL_HOURS;
 
 @Slf4j
 @Service
@@ -38,16 +41,19 @@ public class UserService {
 
     private final UserRepo userRepo;
     private final RoleRepo roleRepo;
-    private final TokenRepo tokenRepo;
+    private final AccessTokenRepo accessTokenRepo;
+    private final RestorePasswordTokenRepo restorePasswordTokenRepo;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepo userRepo,
                        RoleRepo roleRepo,
-                       TokenRepo tokenRepo,
+                       AccessTokenRepo accessTokenRepo,
+                       RestorePasswordTokenRepo restorePasswordTokenRepo,
                        PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
-        this.tokenRepo = tokenRepo;
+        this.accessTokenRepo = accessTokenRepo;
+        this.restorePasswordTokenRepo = restorePasswordTokenRepo;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -66,8 +72,8 @@ public class UserService {
         userEntity.setRoles(Collections.singletonList(getUserRole()));
         userEntity = userRepo.save(userEntity);
 
-        TokenEntity tokenEntity = new TokenEntity(generateToken(), userEntity);
-        tokenRepo.save(tokenEntity);
+        AccessTokenEntity accessTokenEntity = new AccessTokenEntity(generateToken(), userEntity);
+        accessTokenRepo.save(accessTokenEntity);
         return UserOut.fromUserEntity(userEntity);
     }
 
@@ -79,22 +85,22 @@ public class UserService {
                 matches(credentialsIn.getPassword(), optionalUserEntity.get().getPassword())) {
             UserEntity userEntity = optionalUserEntity.get();
             if (userEntity.isEnabled()) {
-                Optional<TokenEntity> tokenEntityOptional = tokenRepo.findByUser(userEntity);
+                Optional<AccessTokenEntity> tokenEntityOptional = accessTokenRepo.findByUser(userEntity);
                 String token;
-                TokenEntity tokenEntity;
+                AccessTokenEntity accessTokenEntity;
                 if (tokenEntityOptional.isEmpty()) {
                     token = generateToken();
-                    tokenEntity = new TokenEntity(token, userEntity);
+                    accessTokenEntity = new AccessTokenEntity(token, userEntity);
                 } else {
-                    tokenEntity = tokenEntityOptional.get();
-                    if (tokenEntity.getExpiryDate().isBefore(LocalDateTime.now())) {
+                    accessTokenEntity = tokenEntityOptional.get();
+                    if (accessTokenEntity.getExpiryDate().isBefore(LocalDateTime.now())) {
                         token = generateToken();
                     } else {
-                        token = tokenEntity.getToken();
+                        token = accessTokenEntity.getToken();
                     }
-                    tokenEntity.updateToken(token);
+                    accessTokenEntity.updateToken(token);
                 }
-                tokenRepo.save(tokenEntity);
+                accessTokenRepo.save(accessTokenEntity);
                 response.addHeader(AUTH_TOKEN_HEADER_NAME, token);
                 userEntity.setLastLogin(LocalDateTime.now());
                 userRepo.save(userEntity);
@@ -138,8 +144,8 @@ public class UserService {
         log.warn("Removing user {}", userId);
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userId);
         UserEntity userEntity = optionalUserEntity.orElseThrow(ResourceNotFoundException::new);
-        Optional<TokenEntity> optionalTokenEntity = tokenRepo.findByUser(userEntity);
-        optionalTokenEntity.ifPresent(tokenRepo::delete);
+        Optional<AccessTokenEntity> optionalTokenEntity = accessTokenRepo.findByUser(userEntity);
+        optionalTokenEntity.ifPresent(accessTokenRepo::delete);
         userRepo.delete(userEntity);
     }
 
@@ -161,12 +167,13 @@ public class UserService {
         userEntity.setNickName(StringUtils.isNotBlank(userIn.getNickName()) ?
                 userIn.getNickName() : userIn.getEmail().split("@")[0]);
         userEntity.setEmail(userIn.getEmail());
+        userEntity = userRepo.save(userEntity);
         return UserOut.fromUserEntity(userEntity);
     }
 
     @Transactional
     public boolean isTokenValid(String token, HttpServletResponse response) {
-        Optional<TokenEntity> optionalTokenEntity = tokenRepo.findByToken(token);
+        Optional<AccessTokenEntity> optionalTokenEntity = accessTokenRepo.findByToken(token);
         if (optionalTokenEntity.isPresent() &&
                 (optionalTokenEntity.get().getExpiryDate().isAfter(LocalDateTime.now())) &&
                 (optionalTokenEntity.get().getUser().isEnabled())) {
@@ -181,9 +188,29 @@ public class UserService {
     public void restorePassword(String email) {
         UserEntity userEntity = userRepo.findByEmail(email).orElseThrow(ResourceNotFoundException::new);
         if (userEntity.isEnabled()) {
-            String password = generatePassword();
-            updatePasswordAndToken(userEntity, password);
-            sendRestorePasswordMail(UserOut.fromUserEntity(userEntity), password);
+            String token = generateToken();
+
+            RestorePasswordTokenEntity entity = new RestorePasswordTokenEntity();
+            entity.setToken(token);
+            entity.setUser(userEntity);
+            entity.setExpiryTime(LocalDateTime.now().plusHours(TOKEN_TTL_HOURS));
+            restorePasswordTokenRepo.save(entity);
+            sendRestorePasswordMail(UserOut.fromUserEntity(userEntity), token);
+        } else {
+            throw new AccessRestrictedException();
+        }
+    }
+
+    @Transactional
+    public void confirmRestorePassword(String token, PasswordIn passwordIn) {
+        RestorePasswordTokenEntity entity = restorePasswordTokenRepo.findByToken(token).
+                orElseThrow(ResourceNotFoundException::new);
+        if (entity.getUser().isEnabled()) {
+            if (entity.getExpiryTime().isAfter(LocalDateTime.now())) {
+                updatePasswordAndToken(entity.getUser(), passwordIn.getPassword());
+            } else {
+                throw new TokenExpiredException();
+            }
         } else {
             throw new AccessRestrictedException();
         }
@@ -207,15 +234,15 @@ public class UserService {
     private void updatePasswordAndToken(UserEntity userEntity, String newPassword) {
         userEntity.setPassword(passwordEncoder.encode(newPassword));
         userEntity = userRepo.save(userEntity);
-        TokenEntity tokenEntity;
-        Optional<TokenEntity> tokenEntityOptional = tokenRepo.findByUser(userEntity);
+        AccessTokenEntity accessTokenEntity;
+        Optional<AccessTokenEntity> tokenEntityOptional = accessTokenRepo.findByUser(userEntity);
         if (tokenEntityOptional.isPresent()) {
-            tokenEntity = tokenEntityOptional.get();
-            tokenEntity.updateToken(generateToken());
+            accessTokenEntity = tokenEntityOptional.get();
+            accessTokenEntity.updateToken(generateToken());
         } else {
-            tokenEntity = new TokenEntity(generateToken(), userEntity);
+            accessTokenEntity = new AccessTokenEntity(generateToken(), userEntity);
         }
-        tokenRepo.save(tokenEntity);
+        accessTokenRepo.save(accessTokenEntity);
     }
 
     private String generateToken() {
@@ -224,17 +251,7 @@ public class UserService {
         return BASE64_ENCODER.encodeToString(randomBytes);
     }
 
-    private String generatePassword() {
-        List<CharacterRule> rules = Arrays.asList(
-                new CharacterRule(EnglishCharacterData.UpperCase, 1),
-                new CharacterRule(EnglishCharacterData.LowerCase, 1),
-                new CharacterRule(EnglishCharacterData.Digit, 1),
-                new CharacterRule(EnglishCharacterData.Special, 1));
-        PasswordGenerator generator = new PasswordGenerator();
-        return generator.generatePassword(12, rules);
-    }
-
-    private void sendRestorePasswordMail(UserOut fromUserEntity, String password) {
+    private void sendRestorePasswordMail(UserOut fromUserEntity, String token) {
         // todo: implement
     }
 }
