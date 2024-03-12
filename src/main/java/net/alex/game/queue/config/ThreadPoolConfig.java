@@ -7,14 +7,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class ThreadPoolConfiguration {
+public class ThreadPoolConfig {
 
     private final ExecutorConfig executorConfig;
     private final EventSerializer eventSerializer;
 
-    public ThreadPoolConfiguration(ExecutorConfig executorConfig,
-                                   SerializerConfig serializerConfig,
-                                   BeanFactory beanFactory) {
+    public ThreadPoolConfig(ExecutorConfig executorConfig,
+                            SerializerConfig serializerConfig,
+                            BeanFactory beanFactory) {
         this.executorConfig = executorConfig;
         this.eventSerializer = beanFactory.getBean(serializerConfig.implementation(), EventSerializer.class);
     }

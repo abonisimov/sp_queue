@@ -13,13 +13,16 @@ CREATE TABLE user_account
     id          BIGINT generated always as identity,
     first_name  VARCHAR(50) NOT NULL,
     last_name   VARCHAR(50) NOT NULL,
-    nick_name   VARCHAR(50) NOT NULL default '',
+    nick_name   VARCHAR(50) NOT NULL,
     email       VARCHAR(255) NOT NULL,
     password    VARCHAR(60) NOT NULL,
     enabled     BOOLEAN NOT NULL DEFAULT TRUE,
     last_login  TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_user_account PRIMARY KEY (id)
 );
+
+ALTER TABLE user_account ADD CONSTRAINT uc_user_account_nick_name UNIQUE (nick_name);
+ALTER TABLE user_account ADD CONSTRAINT uc_user_account_email UNIQUE (email);
 
 CREATE TABLE role
 (
@@ -28,6 +31,8 @@ CREATE TABLE role
     resource_id BIGINT,
     CONSTRAINT pk_role PRIMARY KEY (id)
 );
+
+ALTER TABLE role ADD CONSTRAINT uc_role_name_resourceId UNIQUE (name, resource_id);
 
 CREATE TABLE users_roles
 (
@@ -48,11 +53,8 @@ CREATE TABLE access_token
     CONSTRAINT pk_access_token PRIMARY KEY (id)
 );
 
-ALTER TABLE access_token
-    ADD CONSTRAINT uc_access_token_token UNIQUE (token);
-
-ALTER TABLE access_token
-    ADD CONSTRAINT fk_access_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+ALTER TABLE access_token ADD CONSTRAINT uc_access_token_token UNIQUE (token);
+ALTER TABLE access_token ADD CONSTRAINT fk_access_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
 
 CREATE TABLE restore_password_token
 (
@@ -63,8 +65,5 @@ CREATE TABLE restore_password_token
     CONSTRAINT pk_restore_password_token PRIMARY KEY (id)
 );
 
-ALTER TABLE restore_password_token
-    ADD CONSTRAINT uc_restore_password_token_token UNIQUE (token);
-
-ALTER TABLE restore_password_token
-    ADD CONSTRAINT fk_restore_password_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+ALTER TABLE restore_password_token ADD CONSTRAINT uc_restore_password_token_token UNIQUE (token);
+ALTER TABLE restore_password_token ADD CONSTRAINT fk_restore_password_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);

@@ -1,4 +1,4 @@
-package net.alex.game.queue.model;
+package net.alex.game.queue.model.out;
 
 import lombok.Builder;
 import lombok.Data;

@@ -2,7 +2,9 @@ package net.alex.game.queue.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.model.*;
+import net.alex.game.queue.model.UserStatus;
+import net.alex.game.queue.model.in.*;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -260,7 +262,6 @@ class UserControllerTest extends AbstractUserTest {
                 .firstName("Alex")
                 .lastName("Test")
                 .nickName("Nick")
-                .email("test@test.com")
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -282,7 +283,6 @@ class UserControllerTest extends AbstractUserTest {
                 .firstName("Alex")
                 .lastName("Test")
                 .nickName("Nick")
-                .email("test@test.com")
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -304,7 +304,6 @@ class UserControllerTest extends AbstractUserTest {
                 .firstName("Alex")
                 .lastName("Test")
                 .nickName("Nick")
-                .email("test@test.com")
                 .build();
 
         String uri = "/v1/api/game/users/" + userId;
@@ -326,10 +325,6 @@ class UserControllerTest extends AbstractUserTest {
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "nickName", expectedStatus);
         testValidation(validUser.toBuilder().nickName("A".repeat(51)).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "nickName", expectedStatus);
-        testValidation(validUser.toBuilder().email(null).build(),
-                put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "email", expectedStatus);
-        testValidation(validUser.toBuilder().email("incorrect").build(),
-                put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "email", expectedStatus);
     }
 
     @Test

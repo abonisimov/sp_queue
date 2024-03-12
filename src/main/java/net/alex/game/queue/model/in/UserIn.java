@@ -1,11 +1,10 @@
-package net.alex.game.queue.model;
+package net.alex.game.queue.model.in;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import net.alex.game.queue.annotation.ValidEmail;
 
 @Data
 @NoArgsConstructor
@@ -19,11 +18,7 @@ public class UserIn {
     @Size(min = 2, max=50, message = "Last name length must be greater than {min} and less than {max}")
     private String lastName;
 
+    @NotNull(message = "Nick name is mandatory")
     @Size(min = 4, max=50, message = "Nick name length must be greater than {min} and less than {max}")
     private String nickName;
-
-    @ValidEmail
-    @NotNull(message = "Email name is mandatory")
-    @Size(min = 5, max=255, message = "Email length must be greater than {min} and less than {max}")
-    private String email;
 }

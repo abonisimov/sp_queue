@@ -1,7 +1,7 @@
 package net.alex.game.queue.service;
 
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.model.UserOut;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

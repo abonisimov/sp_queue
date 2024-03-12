@@ -3,11 +3,10 @@ package net.alex.game.queue.service;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.queue.exception.AccessRestrictedException;
-import net.alex.game.queue.exception.InvalidCredentialsException;
-import net.alex.game.queue.exception.ResourceNotFoundException;
-import net.alex.game.queue.exception.TokenExpiredException;
-import net.alex.game.queue.model.*;
+import net.alex.game.queue.config.security.TokenAuthentication;
+import net.alex.game.queue.exception.*;
+import net.alex.game.queue.model.in.*;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -16,9 +15,9 @@ import net.alex.game.queue.persistence.repo.AccessTokenRepo;
 import net.alex.game.queue.persistence.repo.RestorePasswordTokenRepo;
 import net.alex.game.queue.persistence.repo.RoleRepo;
 import net.alex.game.queue.persistence.repo.UserRepo;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
 import static net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity.TOKEN_TTL_HOURS;
@@ -61,15 +61,16 @@ public class UserService {
     public UserOut register(UserPasswordIn userPasswordIn) {
         log.info("Registering user {} {} ({}), {}", userPasswordIn.getFirstName(),
                 userPasswordIn.getLastName(), userPasswordIn.getNickName(), userPasswordIn.getEmail());
+        validateEmail(userPasswordIn.getEmail());
+        validateNickName(userPasswordIn.getNickName());
         UserEntity userEntity = new UserEntity();
         userEntity.setFirstName(userPasswordIn.getFirstName());
         userEntity.setLastName(userPasswordIn.getLastName());
-        userEntity.setNickName(StringUtils.isNotBlank(userPasswordIn.getNickName()) ?
-                userPasswordIn.getNickName() : userPasswordIn.getEmail().split("@")[0]);
+        userEntity.setNickName(userPasswordIn.getNickName());
         userEntity.setEmail(userPasswordIn.getEmail());
         userEntity.setEnabled(true);
         userEntity.setPassword(passwordEncoder.encode(userPasswordIn.getPassword()));
-        userEntity.setRoles(Collections.singletonList(getUserRole()));
+        userEntity.setRoles(Collections.singleton(getUserRole()));
         userEntity = userRepo.save(userEntity);
 
         AccessTokenEntity accessTokenEntity = new AccessTokenEntity(generateToken(), userEntity);
@@ -135,6 +136,7 @@ public class UserService {
         log.info("Changing user's {} status to {}", userId, userStatusIn.getUserStatus());
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userId);
         UserEntity userEntity = optionalUserEntity.orElseThrow(ResourceNotFoundException::new);
+        assertTargetIsValid(userEntity);
         userEntity.setEnabled(userStatusIn.getUserStatus().isEnabled());
         userRepo.save(userEntity);
     }
@@ -144,6 +146,7 @@ public class UserService {
         log.warn("Removing user {}", userId);
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userId);
         UserEntity userEntity = optionalUserEntity.orElseThrow(ResourceNotFoundException::new);
+        assertTargetIsValid(userEntity);
         Optional<AccessTokenEntity> optionalTokenEntity = accessTokenRepo.findByUser(userEntity);
         optionalTokenEntity.ifPresent(accessTokenRepo::delete);
         userRepo.delete(userEntity);
@@ -161,12 +164,11 @@ public class UserService {
 
     @Transactional
     public UserOut changeUser(long userId, UserIn userIn) {
+        validateNickName(userIn.getNickName());
         UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
         userEntity.setFirstName(userIn.getFirstName());
         userEntity.setLastName(userIn.getLastName());
-        userEntity.setNickName(StringUtils.isNotBlank(userIn.getNickName()) ?
-                userIn.getNickName() : userIn.getEmail().split("@")[0]);
-        userEntity.setEmail(userIn.getEmail());
+        userEntity.setNickName(userIn.getNickName());
         userEntity = userRepo.save(userEntity);
         return UserOut.fromUserEntity(userEntity);
     }
@@ -231,6 +233,18 @@ public class UserService {
         return optionalRole.orElseGet(() -> roleRepo.save(new RoleEntity(roleName, resourceId.orElse(null))));
     }
 
+    private void validateEmail(String email) {
+        if (userRepo.existsByEmail(email)) {
+            throw new ResourceAlreadyRegisteredException("email", "Specified email is already registered");
+        }
+    }
+
+    private void validateNickName(String nickName) {
+        if (userRepo.existsByNickName(nickName)) {
+            throw new ResourceAlreadyRegisteredException("nickName", "Specified nick name is already registered");
+        }
+    }
+
     private void updatePasswordAndToken(UserEntity userEntity, String newPassword) {
         userEntity.setPassword(passwordEncoder.encode(newPassword));
         userEntity = userRepo.save(userEntity);
@@ -249,6 +263,20 @@ public class UserService {
         byte[] randomBytes = new byte[TOKEN_BYTES_NUMBER];
         SECURE_RANDOM.nextBytes(randomBytes);
         return BASE64_ENCODER.encodeToString(randomBytes);
+    }
+
+    private void assertTargetIsValid(UserEntity target) {
+        Set<RoleEntity> roles = target.getRoles();
+        boolean isTargetAdmin = roles.stream().anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isTargetRoot = roles.stream().anyMatch(r -> r.getName().equals("ROOT"));
+
+        TokenAuthentication tokenAuthentication = (TokenAuthentication)
+                SecurityContextHolder.getContext().getAuthentication();
+        boolean isUserRoot = tokenAuthentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROOT"));
+
+        if ((!isUserRoot && (isTargetRoot || isTargetAdmin)) || (isUserRoot && isTargetRoot)) {
+            throw new AccessRestrictedException();
+        }
     }
 
     private void sendRestorePasswordMail(UserOut fromUserEntity, String token) {

@@ -17,7 +17,7 @@ import java.util.Objects;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "role")
+@Table(name = "role", uniqueConstraints = {@UniqueConstraint(columnNames = { "name", "resourceId" })})
 public class RoleEntity implements Serializable {
 
     @Serial
@@ -35,10 +35,6 @@ public class RoleEntity implements Serializable {
     private String name;
 
     private Long resourceId;
-
-    public RoleEntity(final String name) {
-        this.name = name;
-    }
 
     public RoleEntity(final String name, Long resourceId) {
         this.name = name;
