@@ -2,19 +2,16 @@ package net.alex.game.queue.service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.config.security.TokenAuthentication;
 import net.alex.game.queue.exception.*;
 import net.alex.game.queue.model.in.*;
 import net.alex.game.queue.model.out.UserOut;
-import net.alex.game.queue.persistence.entity.AccessTokenEntity;
-import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
-import net.alex.game.queue.persistence.entity.RoleEntity;
-import net.alex.game.queue.persistence.entity.UserEntity;
-import net.alex.game.queue.persistence.repo.AccessTokenRepo;
-import net.alex.game.queue.persistence.repo.RestorePasswordTokenRepo;
-import net.alex.game.queue.persistence.repo.RoleRepo;
-import net.alex.game.queue.persistence.repo.UserRepo;
+import net.alex.game.queue.persistence.entity.*;
+import net.alex.game.queue.persistence.repo.*;
+import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,7 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
-import static net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity.TOKEN_TTL_HOURS;
+import static net.alex.game.queue.persistence.entity.PasswordTokenEntity.TOKEN_TTL_HOURS;
 
 @Slf4j
 @Service
@@ -42,32 +39,58 @@ public class UserService {
     private final UserRepo userRepo;
     private final RoleRepo roleRepo;
     private final AccessTokenRepo accessTokenRepo;
-    private final RestorePasswordTokenRepo restorePasswordTokenRepo;
+    private final PasswordTokenRepo passwordTokenRepo;
+    private final RegistrationTokenRepo registrationTokenRepo;
     private final PasswordEncoder passwordEncoder;
+    private final MailService mailService;
 
     public UserService(UserRepo userRepo,
                        RoleRepo roleRepo,
                        AccessTokenRepo accessTokenRepo,
-                       RestorePasswordTokenRepo restorePasswordTokenRepo,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordTokenRepo passwordTokenRepo,
+                       RegistrationTokenRepo registrationTokenRepo,
+                       PasswordEncoder passwordEncoder,
+                       MailService mailService) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.accessTokenRepo = accessTokenRepo;
-        this.restorePasswordTokenRepo = restorePasswordTokenRepo;
+        this.passwordTokenRepo = passwordTokenRepo;
+        this.registrationTokenRepo = registrationTokenRepo;
         this.passwordEncoder = passwordEncoder;
+        this.mailService = mailService;
     }
 
     @Transactional
-    public UserOut register(UserPasswordIn userPasswordIn) {
-        log.info("Registering user {} {} ({}), {}", userPasswordIn.getFirstName(),
-                userPasswordIn.getLastName(), userPasswordIn.getNickName(), userPasswordIn.getEmail());
-        validateEmail(userPasswordIn.getEmail());
-        validateNickName(userPasswordIn.getNickName());
+    public void registerRequest(String email) {
+        if (!EmailValidator.getInstance().isValid(email)) {
+            throw new ConstraintViolationException("Invalid email provided", null);
+        }
+        assertUniqueEmail(email);
+        String token = generateToken();
+        RegistrationTokenEntity entity = new RegistrationTokenEntity();
+        entity.setToken(token);
+        entity.setEmail(email);
+        entity.setExpiryTime(LocalDateTime.now().plusHours(TOKEN_TTL_HOURS));
+        registrationTokenRepo.save(entity);
+        mailService.sendRegistrationMail(token);
+    }
+
+    @Transactional
+    public UserOut register(@NotNull String token, UserPasswordIn userPasswordIn) {
+        log.info("Registering user {} {} ({})", userPasswordIn.getFirstName(),
+                userPasswordIn.getLastName(), userPasswordIn.getNickName());
+        RegistrationTokenEntity registrationTokenEntity = registrationTokenRepo.findByToken(token).
+                orElseThrow(ResourceNotFoundException::new);
+        if (registrationTokenEntity.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new TokenExpiredException();
+        }
+        assertUniqueEmail(registrationTokenEntity.getEmail());
+        assertUniqueNickName(userPasswordIn.getNickName());
         UserEntity userEntity = new UserEntity();
         userEntity.setFirstName(userPasswordIn.getFirstName());
         userEntity.setLastName(userPasswordIn.getLastName());
         userEntity.setNickName(userPasswordIn.getNickName());
-        userEntity.setEmail(userPasswordIn.getEmail());
+        userEntity.setEmail(registrationTokenEntity.getEmail());
         userEntity.setEnabled(true);
         userEntity.setPassword(passwordEncoder.encode(userPasswordIn.getPassword()));
         userEntity.setRoles(Collections.singleton(getUserRole()));
@@ -75,6 +98,7 @@ public class UserService {
 
         AccessTokenEntity accessTokenEntity = new AccessTokenEntity(generateToken(), userEntity);
         accessTokenRepo.save(accessTokenEntity);
+        registrationTokenRepo.delete(registrationTokenEntity);
         return UserOut.fromUserEntity(userEntity);
     }
 
@@ -164,7 +188,7 @@ public class UserService {
 
     @Transactional
     public UserOut changeUser(long userId, UserIn userIn) {
-        validateNickName(userIn.getNickName());
+        assertUniqueNickName(userIn.getNickName());
         UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
         userEntity.setFirstName(userIn.getFirstName());
         userEntity.setLastName(userIn.getLastName());
@@ -187,29 +211,30 @@ public class UserService {
     }
 
     @Transactional
-    public void restorePassword(String email) {
+    public void restorePasswordRequest(String email) {
         UserEntity userEntity = userRepo.findByEmail(email).orElseThrow(ResourceNotFoundException::new);
         if (userEntity.isEnabled()) {
             String token = generateToken();
 
-            RestorePasswordTokenEntity entity = new RestorePasswordTokenEntity();
+            PasswordTokenEntity entity = new PasswordTokenEntity();
             entity.setToken(token);
             entity.setUser(userEntity);
             entity.setExpiryTime(LocalDateTime.now().plusHours(TOKEN_TTL_HOURS));
-            restorePasswordTokenRepo.save(entity);
-            sendRestorePasswordMail(UserOut.fromUserEntity(userEntity), token);
+            passwordTokenRepo.save(entity);
+            mailService.sendRestorePasswordMail(UserOut.fromUserEntity(userEntity), token);
         } else {
             throw new AccessRestrictedException();
         }
     }
 
     @Transactional
-    public void confirmRestorePassword(String token, PasswordIn passwordIn) {
-        RestorePasswordTokenEntity entity = restorePasswordTokenRepo.findByToken(token).
+    public void restorePassword(String token, PasswordIn passwordIn) {
+        PasswordTokenEntity entity = passwordTokenRepo.findByToken(token).
                 orElseThrow(ResourceNotFoundException::new);
         if (entity.getUser().isEnabled()) {
             if (entity.getExpiryTime().isAfter(LocalDateTime.now())) {
                 updatePasswordAndToken(entity.getUser(), passwordIn.getPassword());
+                passwordTokenRepo.delete(entity);
             } else {
                 throw new TokenExpiredException();
             }
@@ -233,13 +258,13 @@ public class UserService {
         return optionalRole.orElseGet(() -> roleRepo.save(new RoleEntity(roleName, resourceId.orElse(null))));
     }
 
-    private void validateEmail(String email) {
+    private void assertUniqueEmail(String email) {
         if (userRepo.existsByEmail(email)) {
             throw new ResourceAlreadyRegisteredException("email", "Specified email is already registered");
         }
     }
 
-    private void validateNickName(String nickName) {
+    private void assertUniqueNickName(String nickName) {
         if (userRepo.existsByNickName(nickName)) {
             throw new ResourceAlreadyRegisteredException("nickName", "Specified nick name is already registered");
         }
@@ -277,9 +302,5 @@ public class UserService {
         if ((!isUserRoot && (isTargetRoot || isTargetAdmin)) || (isUserRoot && isTargetRoot)) {
             throw new AccessRestrictedException();
         }
-    }
-
-    private void sendRestorePasswordMail(UserOut fromUserEntity, String token) {
-        // todo: implement
     }
 }

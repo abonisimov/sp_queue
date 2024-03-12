@@ -2,23 +2,23 @@ package net.alex.game.queue;
 
 import net.alex.game.queue.model.in.UserPasswordIn;
 import net.alex.game.queue.model.out.UserOut;
-import net.alex.game.queue.persistence.entity.AccessTokenEntity;
-import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
-import net.alex.game.queue.persistence.entity.RoleEntity;
-import net.alex.game.queue.persistence.entity.UserEntity;
-import net.alex.game.queue.persistence.repo.AccessTokenRepo;
-import net.alex.game.queue.persistence.repo.RestorePasswordTokenRepo;
-import net.alex.game.queue.persistence.repo.RoleRepo;
-import net.alex.game.queue.persistence.repo.UserRepo;
+import net.alex.game.queue.persistence.entity.*;
+import net.alex.game.queue.persistence.repo.*;
 import net.alex.game.queue.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 public abstract class AbstractUserTest {
 
+    public static final String NAME = "Alex";
+    public static final String LAST_NAME = "Test";
+    public static final String NICK = "Nick";
+    public static final String TOKEN = "token";
+    public static final String VALID_EMAIL = "test@test.com";
     public static final String VALID_PASSWORD = "SomeStrongPass1!";
 
     @Autowired
@@ -30,48 +30,47 @@ public abstract class AbstractUserTest {
     @Autowired
     protected AccessTokenRepo accessTokenRepo;
     @Autowired
-    protected RestorePasswordTokenRepo restorePasswordTokenRepo;
+    protected PasswordTokenRepo passwordTokenRepo;
+    @Autowired
+    protected RegistrationTokenRepo registrationTokenRepo;
     @Autowired
     protected PasswordEncoder passwordEncoder;
 
     public void cleanUserRecords() {
         accessTokenRepo.deleteAll();
-        restorePasswordTokenRepo.deleteAll();
+        passwordTokenRepo.deleteAll();
         userRepo.deleteAll();
         roleRepo.deleteAll();
+        registrationTokenRepo.deleteAll();
+    }
+
+    public UserPasswordIn createUserPasswordIn() {
+        return UserPasswordIn.builder()
+                .firstName(NAME)
+                .lastName(LAST_NAME)
+                .nickName(NICK)
+                .password(VALID_PASSWORD)
+                .matchingPassword(VALID_PASSWORD)
+                .build();
     }
 
     public UserOut registerUser() {
-        return userService.register(UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("test@test.com")
-                .build());
+        String token = UUID.randomUUID().toString();
+        saveRegistrationToken(VALID_EMAIL, token, LocalDateTime.now().plusMinutes(1));
+        return userService.register(token, createUserPasswordIn());
     }
 
     public UserOut registerUniqueUser(String email, String nickName) {
-        return userService.register(UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName(nickName)
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email(email)
-                .build());
+        UserPasswordIn userPasswordIn = createUserPasswordIn().toBuilder().nickName(nickName).build();
+        String token = UUID.randomUUID().toString();
+        saveRegistrationToken(email, token, LocalDateTime.now().plusMinutes(1));
+        return userService.register(token, userPasswordIn);
     }
 
     public UserOut registerDisabledUser() {
-        UserOut userOut = userService.register(UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("test@test.com")
-                .build());
+        String token = UUID.randomUUID().toString();
+        saveRegistrationToken(VALID_EMAIL, token, LocalDateTime.now().plusMinutes(1));
+        UserOut userOut = userService.register(token, createUserPasswordIn());
 
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userOut.getId());
         UserEntity userEntity = optionalUserEntity.orElseThrow();
@@ -110,14 +109,24 @@ public abstract class AbstractUserTest {
         accessTokenRepo.save(accessTokenEntity);
     }
 
-    public void saveRestorePasswordToken(String token,
-                                         UserEntity user,
-                                         LocalDateTime expiryTime) {
-        RestorePasswordTokenEntity restorePasswordTokenEntity = new RestorePasswordTokenEntity();
-        restorePasswordTokenEntity.setToken(token);
-        restorePasswordTokenEntity.setUser(user);
-        restorePasswordTokenEntity.setExpiryTime(expiryTime);
-        restorePasswordTokenRepo.save(restorePasswordTokenEntity);
+    public void savePasswordToken(String token,
+                                  UserEntity user,
+                                  LocalDateTime expiryTime) {
+        PasswordTokenEntity passwordTokenEntity = new PasswordTokenEntity();
+        passwordTokenEntity.setToken(token);
+        passwordTokenEntity.setUser(user);
+        passwordTokenEntity.setExpiryTime(expiryTime);
+        passwordTokenRepo.save(passwordTokenEntity);
+    }
+
+    public void saveRegistrationToken(String email,
+                                      String token,
+                                      LocalDateTime expiryTime) {
+        RegistrationTokenEntity registrationTokenEntity = new RegistrationTokenEntity();
+        registrationTokenEntity.setToken(token);
+        registrationTokenEntity.setEmail(email);
+        registrationTokenEntity.setExpiryTime(expiryTime);
+        registrationTokenRepo.save(registrationTokenEntity);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

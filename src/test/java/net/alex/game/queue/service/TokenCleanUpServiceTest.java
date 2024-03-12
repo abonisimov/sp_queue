@@ -27,14 +27,20 @@ class TokenCleanUpServiceTest  extends AbstractUserTest {
         saveAccessToken("access_token_expired", userEntity, LocalDateTime.now().minusMinutes(1));
         saveAccessToken("access_token_valid", userEntity, LocalDateTime.now().plusMinutes(1));
 
-        saveRestorePasswordToken("password_token_expired", userEntity, LocalDateTime.now().minusMinutes(1));
-        saveRestorePasswordToken("password_token_valid", userEntity, LocalDateTime.now().plusMinutes(1));
+        savePasswordToken("password_token_expired", userEntity, LocalDateTime.now().minusMinutes(1));
+        savePasswordToken("password_token_valid", userEntity, LocalDateTime.now().plusMinutes(1));
+
+        saveRegistrationToken(VALID_EMAIL, "registration_token_expired", LocalDateTime.now().minusMinutes(1));
+        saveRegistrationToken(VALID_EMAIL, "registration_token_valid", LocalDateTime.now().plusMinutes(1));
 
         tokenCleanUpService.cleanUpExpiredTokens();
 
         assertFalse(accessTokenRepo.findByToken("access_token_expired").isPresent());
-        assertFalse(restorePasswordTokenRepo.findByToken("password_token_expired").isPresent());
+        assertFalse(passwordTokenRepo.findByToken("password_token_expired").isPresent());
+        assertFalse(registrationTokenRepo.findByToken("registration_token_expired").isPresent());
+
         assertTrue(accessTokenRepo.findByToken("access_token_valid").isPresent());
-        assertTrue(restorePasswordTokenRepo.findByToken("password_token_valid").isPresent());
+        assertTrue(passwordTokenRepo.findByToken("password_token_valid").isPresent());
+        assertTrue(registrationTokenRepo.findByToken("registration_token_valid").isPresent());
     }
 }
