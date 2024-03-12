@@ -1,11 +1,15 @@
 package net.alex.game.queue.persistence.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.Hibernate;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -14,7 +18,10 @@ import java.util.Objects;
 @NoArgsConstructor
 @Entity
 @Table(name = "role")
-public class RoleEntity {
+public class RoleEntity implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 6418907335913021997L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +30,8 @@ public class RoleEntity {
     @ManyToMany(mappedBy = "roles")
     private Collection<UserEntity> users;
 
+    @NotNull
+    @Size(max=25)
     private String name;
 
     private Long resourceId;

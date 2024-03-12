@@ -266,7 +266,7 @@ public class UserController {
         return userService.isTokenValid(token, response);
     }
 
-    @Operation(summary = "Restore lost password",
+    @Operation(summary = "Restore lost password request",
             tags = {"user"},
             method = "GET",
             responses = {
@@ -279,7 +279,7 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
-                            description = "Specified user is not found",
+                            description = "User with specified email is not found",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
@@ -287,5 +287,35 @@ public class UserController {
     public void restorePassword(@Parameter(description = "User email")
                                 @PathVariable(value = "email") String email) {
         userService.restorePassword(email);
+    }
+
+    @Operation(summary = "Confirm lost password restore and reset password",
+            tags = {"user"},
+            method = "GET",
+            responses = {
+                    @ApiResponse(responseCode = "200",
+                            description = "Success",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "401",
+                            description = "Invalid credentials or expired confirmation token",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "403",
+                            description = "Access denied, account is blocked",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "404",
+                            description = "Specified confirmation token is not found",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            })
+    @GetMapping(value ="/users/restorepassword/confirm/{token}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void confirmRestorePassword(@Parameter(description = "Password restore confirmation token")
+                                       @PathVariable(value = "token") String token,
+                                       @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                               schema = @Schema(implementation = PasswordIn.class)))
+                                       @RequestBody @Valid final PasswordIn passwordIn) {
+        userService.confirmRestorePassword(token, passwordIn);
     }
 }

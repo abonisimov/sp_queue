@@ -71,12 +71,12 @@ class UserControllerTest extends AbstractUserTest {
 
         testValidation(validUser.toBuilder().firstName(null).build(), post(uri), "firstName", expectedStatus);
         testValidation(validUser.toBuilder().firstName("A").build(), post(uri), "firstName", expectedStatus);
-        testValidation(validUser.toBuilder().firstName("A".repeat(256)).build(), post(uri), "firstName", expectedStatus);
+        testValidation(validUser.toBuilder().firstName("A".repeat(51)).build(), post(uri), "firstName", expectedStatus);
         testValidation(validUser.toBuilder().lastName(null).build(), post(uri), "lastName", expectedStatus);
         testValidation(validUser.toBuilder().lastName("A").build(), post(uri), "lastName", expectedStatus);
-        testValidation(validUser.toBuilder().lastName("A".repeat(256)).build(), post(uri), "lastName", expectedStatus);
+        testValidation(validUser.toBuilder().lastName("A".repeat(51)).build(), post(uri), "lastName", expectedStatus);
         testValidation(validUser.toBuilder().nickName("AAA").build(), post(uri), "nickName", expectedStatus);
-        testValidation(validUser.toBuilder().nickName("A".repeat(256)).build(), post(uri), "nickName", expectedStatus);
+        testValidation(validUser.toBuilder().nickName("A".repeat(51)).build(), post(uri), "nickName", expectedStatus);
         testValidation(validUser.toBuilder().email(null).build(), post(uri), "email", expectedStatus);
         testValidation(validUser.toBuilder().email("incorrect").build(), post(uri), "email", expectedStatus);
         testValidation(validUser.toBuilder().password("weak").matchingPassword("weak").build(), post(uri), "password", expectedStatus);
@@ -187,7 +187,7 @@ class UserControllerTest extends AbstractUserTest {
     void getUser() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("USER");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId();
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
         mockMvc.perform(get("/v1/api/game/users/" + userId).
@@ -201,7 +201,7 @@ class UserControllerTest extends AbstractUserTest {
     void getUser_foreignId() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("USER");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         mockMvc.perform(get("/v1/api/game/users/" + userId).
                         contentType(MediaType.APPLICATION_JSON).
@@ -214,7 +214,7 @@ class UserControllerTest extends AbstractUserTest {
     void getUser_as_admin() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("ADMIN");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId();
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
         mockMvc.perform(get("/v1/api/game/users/" + userId).
@@ -228,7 +228,7 @@ class UserControllerTest extends AbstractUserTest {
     void getUser_as_admin_foreignId() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("ADMIN");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
         mockMvc.perform(get("/v1/api/game/users/" + userId).
@@ -254,7 +254,7 @@ class UserControllerTest extends AbstractUserTest {
     void changeUser() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("USER");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId();
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
                 .firstName("Alex")
@@ -276,7 +276,7 @@ class UserControllerTest extends AbstractUserTest {
     void changeUser_foreignId() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("USER");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         UserIn validUser = UserIn.builder()
                 .firstName("Alex")
@@ -298,7 +298,7 @@ class UserControllerTest extends AbstractUserTest {
     void changeUser_validation() throws Exception {
         cleanUserRecords();
         String token = createTokenByRoleName("USER");
-        long userId = tokenRepo.findByToken(token).orElseThrow().getUser().getId();
+        long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
                 .firstName("Alex")
@@ -314,17 +314,17 @@ class UserControllerTest extends AbstractUserTest {
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "firstName", expectedStatus);
         testValidation(validUser.toBuilder().firstName("A").build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "firstName", expectedStatus);
-        testValidation(validUser.toBuilder().firstName("A".repeat(256)).build(),
+        testValidation(validUser.toBuilder().firstName("A".repeat(51)).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "firstName", expectedStatus);
         testValidation(validUser.toBuilder().lastName(null).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "lastName", expectedStatus);
         testValidation(validUser.toBuilder().lastName("A").build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "lastName", expectedStatus);
-        testValidation(validUser.toBuilder().lastName("A".repeat(256)).build(),
+        testValidation(validUser.toBuilder().lastName("A".repeat(51)).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "lastName", expectedStatus);
         testValidation(validUser.toBuilder().nickName("AAA").build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "nickName", expectedStatus);
-        testValidation(validUser.toBuilder().nickName("A".repeat(256)).build(),
+        testValidation(validUser.toBuilder().nickName("A".repeat(51)).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "nickName", expectedStatus);
         testValidation(validUser.toBuilder().email(null).build(),
                 put(uri).header(AUTH_TOKEN_HEADER_NAME, token), "email", expectedStatus);
@@ -349,6 +349,37 @@ class UserControllerTest extends AbstractUserTest {
                         contentType(MediaType.APPLICATION_JSON)).
                 andDo(print()).
                 andExpect(status().isOk());
+    }
+
+    @Test
+    void confirmRestorePassword() throws Exception {
+        PasswordIn validChangePass = PasswordIn.
+                builder().
+                password(VALID_PASSWORD).
+                matchingPassword(VALID_PASSWORD).
+                build();
+
+        doNothing().when(service).confirmRestorePassword(anyString(), any());
+        mockMvc.perform(get("/v1/api/game/users/restorepassword/confirm/token").
+                        contentType(MediaType.APPLICATION_JSON).
+                        content(MAPPER.writeValueAsString(validChangePass))).
+                andDo(print()).
+                andExpect(status().isOk());
+    }
+
+    @Test
+    void confirmRestorePassword_validation() throws Exception {
+        PasswordIn validChangePass = PasswordIn.
+                builder().
+                password(VALID_PASSWORD).
+                matchingPassword(VALID_PASSWORD).
+                build();
+        String uri = "/v1/api/game/users/restorepassword/confirm/token";
+        ResultMatcher expectedStatus = status().isBadRequest();
+
+        testValidation(validChangePass.toBuilder().password("weak").matchingPassword("weak").build(), get(uri), "password", expectedStatus);
+        testValidation(validChangePass.toBuilder().matchingPassword(null).build(), get(uri), "matchingPassword", expectedStatus);
+        testValidation(validChangePass.toBuilder().matchingPassword("different").build(), get(uri), "passwordIn", expectedStatus);
     }
 
     private void testValidation(Object invalidObject,

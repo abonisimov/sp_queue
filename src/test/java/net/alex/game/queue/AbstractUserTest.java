@@ -2,15 +2,19 @@ package net.alex.game.queue;
 
 import net.alex.game.queue.model.UserOut;
 import net.alex.game.queue.model.UserPasswordIn;
+import net.alex.game.queue.persistence.entity.AccessTokenEntity;
+import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
+import net.alex.game.queue.persistence.repo.AccessTokenRepo;
+import net.alex.game.queue.persistence.repo.RestorePasswordTokenRepo;
 import net.alex.game.queue.persistence.repo.RoleRepo;
-import net.alex.game.queue.persistence.repo.TokenRepo;
 import net.alex.game.queue.persistence.repo.UserRepo;
 import net.alex.game.queue.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public abstract class AbstractUserTest {
@@ -24,12 +28,15 @@ public abstract class AbstractUserTest {
     @Autowired
     protected RoleRepo roleRepo;
     @Autowired
-    protected TokenRepo tokenRepo;
+    protected AccessTokenRepo accessTokenRepo;
+    @Autowired
+    protected RestorePasswordTokenRepo restorePasswordTokenRepo;
     @Autowired
     protected PasswordEncoder passwordEncoder;
 
     public void cleanUserRecords() {
-        tokenRepo.deleteAll();
+        accessTokenRepo.deleteAll();
+        restorePasswordTokenRepo.deleteAll();
         userRepo.deleteAll();
         roleRepo.deleteAll();
     }
@@ -67,7 +74,8 @@ public abstract class AbstractUserTest {
         return createTokenByRole(roleName, Optional.empty());
     }
 
-    public String createTokenByRole(String roleName, Optional<Long> resourceId) {
+    public String createTokenByRole(String roleName,
+                                    @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Long> resourceId) {
         UserOut userOut = registerUser();
         Optional<UserEntity> optionalUserEntity = userRepo.findById(userOut.getId());
         UserEntity userEntity = optionalUserEntity.orElseThrow();
@@ -78,6 +86,26 @@ public abstract class AbstractUserTest {
             userRepo.save(userEntity);
         }
 
-        return tokenRepo.findByUser(userEntity).orElseThrow().getToken();
+        return accessTokenRepo.findByUser(userEntity).orElseThrow().getToken();
+    }
+
+    public void saveAccessToken(String token,
+                                UserEntity user,
+                                LocalDateTime expiryDate) {
+        AccessTokenEntity accessTokenEntity = new AccessTokenEntity();
+        accessTokenEntity.setToken(token);
+        accessTokenEntity.setUser(user);
+        accessTokenEntity.setExpiryDate(expiryDate);
+        accessTokenRepo.save(accessTokenEntity);
+    }
+
+    public void saveRestorePasswordToken(String token,
+                                         UserEntity user,
+                                         LocalDateTime expiryTime) {
+        RestorePasswordTokenEntity restorePasswordTokenEntity = new RestorePasswordTokenEntity();
+        restorePasswordTokenEntity.setToken(token);
+        restorePasswordTokenEntity.setUser(user);
+        restorePasswordTokenEntity.setExpiryTime(expiryTime);
+        restorePasswordTokenRepo.save(restorePasswordTokenEntity);
     }
 }

@@ -1,7 +1,7 @@
 package net.alex.game.queue.config.security;
 
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.persistence.entity.TokenEntity;
+import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +41,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
         assertTrue(authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("USER")));
         assertNotNull(authentication.getPrincipal());
 
-        UserEntity userEntity = tokenRepo.findByToken(token).orElseThrow().getUser();
+        UserEntity userEntity = accessTokenRepo.findByToken(token).orElseThrow().getUser();
         assertNotNull(userEntity);
         assertEquals(PrincipalData.fromUserEntity(userEntity), authentication.getPrincipal());
     }
@@ -55,9 +55,9 @@ class AccessTokenServiceTest extends AbstractUserTest {
     @Test
     void getAuthentication_expired_token() {
         String token = createTokenByRoleName("USER");
-        Optional<TokenEntity> tokenEntity = tokenRepo.findByToken(token);
+        Optional<AccessTokenEntity> tokenEntity = accessTokenRepo.findByToken(token);
         tokenEntity.orElseThrow().setExpiryDate(LocalDateTime.now().minusMinutes(1));
-        tokenRepo.save(tokenEntity.get());
+        accessTokenRepo.save(tokenEntity.get());
 
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
@@ -69,7 +69,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
     @Test
     void getAuthentication_disabled_user() {
         String token = createTokenByRoleName("USER");
-        Optional<TokenEntity> tokenEntity = tokenRepo.findByToken(token);
+        Optional<AccessTokenEntity> tokenEntity = accessTokenRepo.findByToken(token);
         UserEntity userEntity = tokenEntity.orElseThrow().getUser();
         userEntity.setEnabled(false);
         userRepo.save(userEntity);

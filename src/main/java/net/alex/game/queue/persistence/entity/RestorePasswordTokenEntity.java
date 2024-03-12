@@ -8,34 +8,43 @@ import org.hibernate.Hibernate;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Entity
 @Getter
 @Setter
 @ToString
-@Table(name = "events_backup", schema = "public")
-public class EventBackupEntity implements Serializable {
+@Entity
+@Table(name = "restore_password_token")
+public class RestorePasswordTokenEntity implements Serializable {
 
     @Serial
-    private static final long serialVersionUID = 1349410337486349167L;
+    private static final long serialVersionUID = -9032794203463424264L;
+
+    public static final int TOKEN_TTL_HOURS = 24;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @NotNull
-    @Size(max = 64000)
-    @Column(name = "event_json")
-    private String eventJson;
+    @Size(max=50)
+    private String token;
+
+    @OneToOne(targetEntity = UserEntity.class, fetch = FetchType.EAGER)
+    @JoinColumn(nullable = false, name = "user_id", foreignKey = @ForeignKey(name = "fk_restore_password_token_on_user"))
+    private UserEntity user;
+
+    @NotNull
+    private LocalDateTime expiryTime;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        EventBackupEntity that = (EventBackupEntity) o;
+        RestorePasswordTokenEntity that = (RestorePasswordTokenEntity) o;
         return id != null && Objects.equals(id, that.id);
     }
 

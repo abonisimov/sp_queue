@@ -7,12 +7,12 @@ import java.io.Serial;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @HttpStatusMapping(status = UNAUTHORIZED)
-public class AccessTokenExpiredException extends RuntimeException {
+public class TokenExpiredException extends RuntimeException {
 
     @Serial
     private static final long serialVersionUID = -42015595505498056L;
 
-    public AccessTokenExpiredException() {
-        super("Access token has expired");
+    public TokenExpiredException() {
+        super("Specified token has expired");
     }
 }
