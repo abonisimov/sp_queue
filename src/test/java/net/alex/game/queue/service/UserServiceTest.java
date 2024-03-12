@@ -2,11 +2,11 @@ package net.alex.game.queue.service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.exception.AccessRestrictedException;
-import net.alex.game.queue.exception.InvalidCredentialsException;
-import net.alex.game.queue.exception.ResourceNotFoundException;
-import net.alex.game.queue.exception.TokenExpiredException;
-import net.alex.game.queue.model.*;
+import net.alex.game.queue.config.security.AccessTokenService;
+import net.alex.game.queue.exception.*;
+import net.alex.game.queue.model.UserStatus;
+import net.alex.game.queue.model.in.*;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -14,10 +14,13 @@ import net.alex.game.queue.persistence.entity.UserEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -27,6 +30,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class UserServiceTest extends AbstractUserTest {
+
+    @Autowired
+    private AccessTokenService accessTokenService;
 
     @BeforeEach
     void beforeEach() {
@@ -56,6 +62,38 @@ class UserServiceTest extends AbstractUserTest {
 
         Optional<AccessTokenEntity> tokenEntity = getTokenEntityByUserId(result.getId());
         assertTrue(tokenEntity.isPresent());
+    }
+
+    @Test
+    void register_invalid_email() {
+        UserOut userOut = registerUser();
+
+        UserPasswordIn userPasswordIn = UserPasswordIn.builder()
+                .firstName("Alex")
+                .lastName("Test")
+                .nickName("Different_Nick")
+                .password(VALID_PASSWORD)
+                .matchingPassword(VALID_PASSWORD)
+                .email(userOut.getEmail())
+                .build();
+
+        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.register(userPasswordIn));
+    }
+
+    @Test
+    void register_invalid_nickName() {
+        UserOut userOut = registerUser();
+
+        UserPasswordIn userPasswordIn = UserPasswordIn.builder()
+                .firstName("Alex")
+                .lastName("Test")
+                .nickName(userOut.getNickName())
+                .password(VALID_PASSWORD)
+                .matchingPassword(VALID_PASSWORD)
+                .email("different@email.com")
+                .build();
+
+        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.register(userPasswordIn));
     }
 
     @Test
@@ -187,6 +225,12 @@ class UserServiceTest extends AbstractUserTest {
     void changeUserStatus() {
         UserOut userOut = registerUser();
         long userId = userOut.getId();
+
+        String token = createTokenByRole(userOut.getNickName() + "x", userOut.getEmail() + "x", "ADMIN", Optional.empty());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
+        SecurityContextHolder.getContext().setAuthentication(accessTokenService.getAuthentication(request).orElseThrow());
+
         userService.changeUserStatus(userId, new UserStatusIn(UserStatus.DISABLE));
         assertFalse(userRepo.findById(userId).orElseThrow().isEnabled());
         userService.changeUserStatus(userId, new UserStatusIn(UserStatus.ENABLE));
@@ -202,13 +246,17 @@ class UserServiceTest extends AbstractUserTest {
     @Test
     void deleteUser() {
         UserOut userOut = registerUser();
-
         long userId = userOut.getId();
+
+        String token = createTokenByRole(userOut.getNickName() + "x", userOut.getEmail() + "x", "ADMIN", Optional.empty());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
+        SecurityContextHolder.getContext().setAuthentication(accessTokenService.getAuthentication(request).orElseThrow());
 
         userService.deleteUser(userId);
 
         assertTrue(userRepo.findById(userId).isEmpty());
-        assertFalse(accessTokenRepo.findAll().iterator().hasNext());
+        assertEquals(1, accessTokenRepo.count());
         assertTrue(roleRepo.findAll().iterator().hasNext());
     }
 
@@ -248,7 +296,6 @@ class UserServiceTest extends AbstractUserTest {
                 firstName(userOut.getFirstName() + 'a').
                 lastName(userOut.getLastName() + 'b').
                 nickName(userOut.getNickName() + 'c').
-                email(userOut.getEmail() + 'd').
                 build();
 
         UserOut result = userService.changeUser(userOut.getId(), userIn);
@@ -257,13 +304,26 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(userIn.getFirstName(), result.getFirstName());
         assertEquals(userIn.getLastName(), result.getLastName());
         assertEquals(userIn.getNickName(), result.getNickName());
-        assertEquals(userIn.getEmail(), result.getEmail());
 
         UserEntity userEntity = userRepo.findById(result.getId()).orElseThrow();
         assertEquals(userIn.getFirstName(), userEntity.getFirstName());
         assertEquals(userIn.getLastName(), userEntity.getLastName());
         assertEquals(userIn.getNickName(), userEntity.getNickName());
-        assertEquals(userIn.getEmail(), userEntity.getEmail());
+
+        assertEquals(userOut.getEmail(), userEntity.getEmail());
+    }
+
+    @Test
+    void changeUser_invalid_nickName() {
+        UserOut userOut = registerUser();
+        long userId = userOut.getId();
+        UserIn userIn = UserIn.builder()
+                .firstName("Alex")
+                .lastName("Test")
+                .nickName(userOut.getNickName())
+                .build();
+
+        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.changeUser(userId, userIn));
     }
 
     @Test

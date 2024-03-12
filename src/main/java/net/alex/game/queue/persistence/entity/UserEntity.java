@@ -12,8 +12,8 @@ import org.hibernate.Hibernate;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.Objects;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -41,10 +41,12 @@ public class UserEntity implements Serializable {
 
     @NotNull
     @Size(min = 2, max=50)
+    @Column(unique = true)
     private String nickName;
 
     @NotNull
     @Size(max=255)
+    @Column(unique = true)
     private String email;
 
     @Column(length = 60)
@@ -59,8 +61,9 @@ public class UserEntity implements Serializable {
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "users_roles",
             joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
-    private Collection<RoleEntity> roles;
+            inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"),
+            uniqueConstraints = {@UniqueConstraint(columnNames = { "user_id", "role_id" })})
+    private Set<RoleEntity> roles;
 
     @Override
     public boolean equals(Object o) {

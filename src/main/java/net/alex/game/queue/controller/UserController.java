@@ -9,7 +9,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import net.alex.game.queue.model.*;
+import net.alex.game.queue.model.in.*;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.service.UserService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -42,8 +43,12 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                                     schema = @Schema(implementation = UserOut.class))
                     ),
-                    @ApiResponse(responseCode = "400",
+                    @ApiResponse(responseCode = "401",
                             description = "Invalid registration data provided",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "409",
+                            description = "Non unique email or nick name",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
@@ -119,7 +124,7 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "403",
-                            description = "Access denied, account is blocked or data is restricted",
+                            description = "Access denied, account is blocked or action is restricted",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
@@ -151,7 +156,7 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "403",
-                            description = "Access denied, account is blocked or data is restricted",
+                            description = "Access denied, account is blocked or action is restricted",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "404",
@@ -233,11 +238,15 @@ public class UserController {
                                     schema = @Schema(implementation = UserOut.class))
                     ),
                     @ApiResponse(responseCode = "401",
-                            description = "Invalid credentials",
+                            description = "Invalid user data provided",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "403",
                             description = "Access denied, account is blocked",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "409",
+                            description = "Non unique nick name",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
@@ -246,7 +255,7 @@ public class UserController {
     public UserOut changeUser(@Parameter(description = "User id")
                               @PathVariable(value = "userId") long userId,
                               @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                      schema = @Schema(implementation = UserPasswordIn.class)))
+                                      schema = @Schema(implementation = UserIn.class)))
                               @RequestBody @Valid final UserIn userIn) {
         return userService.changeUser(userId, userIn);
     }

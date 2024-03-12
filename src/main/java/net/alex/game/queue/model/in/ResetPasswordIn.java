@@ -1,4 +1,4 @@
-package net.alex.game.queue.model;
+package net.alex.game.queue.model.in;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;

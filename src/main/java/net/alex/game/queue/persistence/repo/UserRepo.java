@@ -11,4 +11,6 @@ public interface UserRepo extends CrudRepository<UserEntity, Long> {
     Optional<UserEntity> findByEmail(String email);
     Optional<UserEntity> findByNickName(String nickName);
     Page<UserEntity> findAll(Pageable pageable);
+    boolean existsByEmail(String email);
+    boolean existsByNickName(String nickName);
 }

@@ -1,7 +1,7 @@
 package net.alex.game.queue;
 
-import net.alex.game.queue.model.UserOut;
-import net.alex.game.queue.model.UserPasswordIn;
+import net.alex.game.queue.model.in.UserPasswordIn;
+import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -52,6 +52,17 @@ public abstract class AbstractUserTest {
                 .build());
     }
 
+    public UserOut registerUniqueUser(String email, String nickName) {
+        return userService.register(UserPasswordIn.builder()
+                .firstName("Alex")
+                .lastName("Test")
+                .nickName(nickName)
+                .password(VALID_PASSWORD)
+                .matchingPassword(VALID_PASSWORD)
+                .email(email)
+                .build());
+    }
+
     public UserOut registerDisabledUser() {
         UserOut userOut = userService.register(UserPasswordIn.builder()
                 .firstName("Alex")
@@ -77,16 +88,16 @@ public abstract class AbstractUserTest {
     public String createTokenByRole(String roleName,
                                     @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Long> resourceId) {
         UserOut userOut = registerUser();
-        Optional<UserEntity> optionalUserEntity = userRepo.findById(userOut.getId());
-        UserEntity userEntity = optionalUserEntity.orElseThrow();
-        RoleEntity roleEntity = userService.getRole(roleName, resourceId);
+        return createToken(userOut, roleName, resourceId);
+    }
 
-        if (userEntity.getRoles().stream().noneMatch(r -> r.equals(roleEntity))) {
-            userEntity.getRoles().add(roleEntity);
-            userRepo.save(userEntity);
-        }
-
-        return accessTokenRepo.findByUser(userEntity).orElseThrow().getToken();
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public String createTokenByRole(String nickName,
+                                    String email,
+                                    String roleName,
+                                    Optional<Long> resourceId) {
+        UserOut userOut = registerUniqueUser(nickName, email);
+        return createToken(userOut, roleName, resourceId);
     }
 
     public void saveAccessToken(String token,
@@ -107,5 +118,19 @@ public abstract class AbstractUserTest {
         restorePasswordTokenEntity.setUser(user);
         restorePasswordTokenEntity.setExpiryTime(expiryTime);
         restorePasswordTokenRepo.save(restorePasswordTokenEntity);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private String createToken(UserOut userOut, String roleName, Optional<Long> resourceId) {
+        Optional<UserEntity> optionalUserEntity = userRepo.findById(userOut.getId());
+        UserEntity userEntity = optionalUserEntity.orElseThrow();
+        RoleEntity roleEntity = userService.getRole(roleName, resourceId);
+
+        if (userEntity.getRoles().stream().noneMatch(r -> r.equals(roleEntity))) {
+            userEntity.getRoles().add(roleEntity);
+            userRepo.save(userEntity);
+        }
+
+        return accessTokenRepo.findByUser(userEntity).orElseThrow().getToken();
     }
 }

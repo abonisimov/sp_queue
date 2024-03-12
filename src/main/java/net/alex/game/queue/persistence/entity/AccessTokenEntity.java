@@ -31,6 +31,7 @@ public class AccessTokenEntity implements Serializable {
 
     @NotNull
     @Size(max=50)
+    @Column(unique = true)
     private String token;
 
     @OneToOne(targetEntity = UserEntity.class, fetch = FetchType.EAGER)

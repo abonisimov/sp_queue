@@ -3,6 +3,8 @@ package net.alex.game.queue.config;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.annotation.HttpStatusMapping;
+import net.alex.game.queue.exception.ResourceAlreadyRegisteredException;
+import net.alex.game.queue.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -57,6 +59,18 @@ public class ErrorHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(errorBody);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> onError(ResourceAlreadyRegisteredException error) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put(error.getResource(), error.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(errorBody);
     }
