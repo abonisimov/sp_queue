@@ -38,18 +38,19 @@ class UserControllerTest extends AbstractUserTest {
     private UserService service;
 
     @Test
-    void registerUserAccount() throws Exception {
-        UserPasswordIn userPasswordIn = UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("test@test.com")
-                .build();
+    void registerRequest() throws Exception {
+        doNothing().when(service).registerRequest(anyString());
+        mockMvc.perform(get("/v1/api/game/users/register/test@test.com").
+                        contentType(MediaType.APPLICATION_JSON)).
+                andDo(print()).
+                andExpect(status().isOk());
+    }
 
-        doReturn(UserOut.builder().build()).when(service).register(any());
-        mockMvc.perform(post("/v1/api/game/users/register").
+    @Test
+    void register() throws Exception {
+        UserPasswordIn userPasswordIn = createUserPasswordIn();
+        doReturn(UserOut.builder().build()).when(service).register(anyString(), any());
+        mockMvc.perform(post("/v1/api/game/users/register/token").
                         contentType(MediaType.APPLICATION_JSON).
                         content(MAPPER.writeValueAsString(userPasswordIn))).
                 andDo(print()).
@@ -58,17 +59,9 @@ class UserControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void registerUserAccount_validation() throws Exception {
-        UserPasswordIn validUser = UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("test@test.com")
-                .build();
-
-        String uri = "/v1/api/game/users/register";
+    void register_validation() throws Exception {
+        UserPasswordIn validUser = createUserPasswordIn();
+        String uri = "/v1/api/game/users/register/token";
         ResultMatcher expectedStatus = status().isBadRequest();
 
         testValidation(validUser.toBuilder().firstName(null).build(), post(uri), "firstName", expectedStatus);
@@ -79,8 +72,6 @@ class UserControllerTest extends AbstractUserTest {
         testValidation(validUser.toBuilder().lastName("A".repeat(51)).build(), post(uri), "lastName", expectedStatus);
         testValidation(validUser.toBuilder().nickName("AAA").build(), post(uri), "nickName", expectedStatus);
         testValidation(validUser.toBuilder().nickName("A".repeat(51)).build(), post(uri), "nickName", expectedStatus);
-        testValidation(validUser.toBuilder().email(null).build(), post(uri), "email", expectedStatus);
-        testValidation(validUser.toBuilder().email("incorrect").build(), post(uri), "email", expectedStatus);
         testValidation(validUser.toBuilder().password("weak").matchingPassword("weak").build(), post(uri), "password", expectedStatus);
         testValidation(validUser.toBuilder().matchingPassword(null).build(), post(uri), "matchingPassword", expectedStatus);
         testValidation(validUser.toBuilder().matchingPassword("different").build(), post(uri), "userPasswordIn", expectedStatus);
@@ -259,9 +250,9 @@ class UserControllerTest extends AbstractUserTest {
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
+                .firstName(NAME)
+                .lastName(LAST_NAME)
+                .nickName(NICK)
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -280,9 +271,9 @@ class UserControllerTest extends AbstractUserTest {
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         UserIn validUser = UserIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
+                .firstName(NAME)
+                .lastName(LAST_NAME)
+                .nickName(NICK)
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -301,9 +292,9 @@ class UserControllerTest extends AbstractUserTest {
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
+                .firstName(NAME)
+                .lastName(LAST_NAME)
+                .nickName(NICK)
                 .build();
 
         String uri = "/v1/api/game/users/" + userId;
@@ -338,8 +329,8 @@ class UserControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void restorePassword() throws Exception {
-        doNothing().when(service).restorePassword(anyString());
+    void restorePasswordRequest() throws Exception {
+        doNothing().when(service).restorePasswordRequest(anyString());
         mockMvc.perform(get("/v1/api/game/users/restorepassword/test@test.com").
                         contentType(MediaType.APPLICATION_JSON)).
                 andDo(print()).
@@ -347,15 +338,15 @@ class UserControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void confirmRestorePassword() throws Exception {
+    void restorePassword() throws Exception {
         PasswordIn validChangePass = PasswordIn.
                 builder().
                 password(VALID_PASSWORD).
                 matchingPassword(VALID_PASSWORD).
                 build();
 
-        doNothing().when(service).confirmRestorePassword(anyString(), any());
-        mockMvc.perform(get("/v1/api/game/users/restorepassword/confirm/token").
+        doNothing().when(service).restorePassword(anyString(), any());
+        mockMvc.perform(post("/v1/api/game/users/restorepassword/token").
                         contentType(MediaType.APPLICATION_JSON).
                         content(MAPPER.writeValueAsString(validChangePass))).
                 andDo(print()).
@@ -363,18 +354,18 @@ class UserControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void confirmRestorePassword_validation() throws Exception {
+    void restorePassword_validation() throws Exception {
         PasswordIn validChangePass = PasswordIn.
                 builder().
                 password(VALID_PASSWORD).
                 matchingPassword(VALID_PASSWORD).
                 build();
-        String uri = "/v1/api/game/users/restorepassword/confirm/token";
+        String uri = "/v1/api/game/users/restorepassword/token";
         ResultMatcher expectedStatus = status().isBadRequest();
 
-        testValidation(validChangePass.toBuilder().password("weak").matchingPassword("weak").build(), get(uri), "password", expectedStatus);
-        testValidation(validChangePass.toBuilder().matchingPassword(null).build(), get(uri), "matchingPassword", expectedStatus);
-        testValidation(validChangePass.toBuilder().matchingPassword("different").build(), get(uri), "passwordIn", expectedStatus);
+        testValidation(validChangePass.toBuilder().password("weak").matchingPassword("weak").build(), post(uri), "password", expectedStatus);
+        testValidation(validChangePass.toBuilder().matchingPassword(null).build(), post(uri), "matchingPassword", expectedStatus);
+        testValidation(validChangePass.toBuilder().matchingPassword("different").build(), post(uri), "passwordIn", expectedStatus);
     }
 
     private void testValidation(Object invalidObject,

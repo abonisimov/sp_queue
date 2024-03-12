@@ -34,7 +34,27 @@ public class UserController {
         this.userService = userService;
     }
 
-    @Operation(summary = "Register new user account",
+    @Operation(summary = "Register new user account request",
+            tags = {"user"},
+            method = "GET",
+            responses = {
+                    @ApiResponse(responseCode = "200",
+                            description = "Success",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = UserOut.class))
+                    ),
+                    @ApiResponse(responseCode = "409",
+                            description = "Non unique email",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            })
+    @GetMapping(value = "/users/register/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void registerRequest(@Parameter(description = "User email")
+                                @PathVariable(value = "email") String email) {
+        userService.registerRequest(email);
+    }
+
+    @Operation(summary = "Confirm register new user account",
             tags = {"user"},
             method = "POST",
             responses = {
@@ -44,7 +64,11 @@ public class UserController {
                                     schema = @Schema(implementation = UserOut.class))
                     ),
                     @ApiResponse(responseCode = "401",
-                            description = "Invalid registration data provided",
+                            description = "Invalid registration data provided or confirmation token is expired",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "404",
+                            description = "Specified confirmation token is not found",
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "409",
@@ -52,11 +76,13 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @PostMapping(value = "/users/register", produces = MediaType.APPLICATION_JSON_VALUE)
-    public UserOut register(@Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-            schema = @Schema(implementation = UserPasswordIn.class)))
+    @PostMapping(value = "/users/register/{token}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public UserOut register(@Parameter(description = "Password restore confirmation token")
+                            @PathVariable(value = "token") String token,
+                            @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = UserPasswordIn.class)))
                             @RequestBody @Valid final UserPasswordIn userPasswordIn) {
-        return userService.register(userPasswordIn);
+        return userService.register(token, userPasswordIn);
     }
 
     @Operation(summary = "Sign in registered user",
@@ -293,14 +319,14 @@ public class UserController {
                     )
             })
     @GetMapping(value ="/users/restorepassword/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void restorePassword(@Parameter(description = "User email")
-                                @PathVariable(value = "email") String email) {
-        userService.restorePassword(email);
+    public void restorePasswordRequest(@Parameter(description = "User email")
+                                       @PathVariable(value = "email") String email) {
+        userService.restorePasswordRequest(email);
     }
 
     @Operation(summary = "Confirm lost password restore and reset password",
             tags = {"user"},
-            method = "GET",
+            method = "POST",
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Success",
@@ -319,12 +345,12 @@ public class UserController {
                             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     )
             })
-    @GetMapping(value ="/users/restorepassword/confirm/{token}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public void confirmRestorePassword(@Parameter(description = "Password restore confirmation token")
-                                       @PathVariable(value = "token") String token,
-                                       @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                               schema = @Schema(implementation = PasswordIn.class)))
-                                       @RequestBody @Valid final PasswordIn passwordIn) {
-        userService.confirmRestorePassword(token, passwordIn);
+    @PostMapping(value ="/users/restorepassword/{token}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void restorePassword(@Parameter(description = "Password restore confirmation token")
+                                @PathVariable(value = "token") String token,
+                                @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = PasswordIn.class)))
+                                @RequestBody @Valid final PasswordIn passwordIn) {
+        userService.restorePassword(token, passwordIn);
     }
 }

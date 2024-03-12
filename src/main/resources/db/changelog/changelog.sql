@@ -56,14 +56,25 @@ CREATE TABLE access_token
 ALTER TABLE access_token ADD CONSTRAINT uc_access_token_token UNIQUE (token);
 ALTER TABLE access_token ADD CONSTRAINT fk_access_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
 
-CREATE TABLE restore_password_token
+CREATE TABLE password_token
 (
-    id          BIGINT generated always as identity,
-    token       VARCHAR(50) NOT NULL,
-    user_id     BIGINT NOT NULL,
-    expiry_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    CONSTRAINT pk_restore_password_token PRIMARY KEY (id)
+    id           BIGINT generated always as identity,
+    token        VARCHAR(50) NOT NULL,
+    user_id      BIGINT NOT NULL,
+    expiry_time  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    CONSTRAINT pk_password_token PRIMARY KEY (id)
 );
 
-ALTER TABLE restore_password_token ADD CONSTRAINT uc_restore_password_token_token UNIQUE (token);
-ALTER TABLE restore_password_token ADD CONSTRAINT fk_restore_password_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+ALTER TABLE password_token ADD CONSTRAINT uc_password_token_token UNIQUE (token);
+ALTER TABLE password_token ADD CONSTRAINT fk_password_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+
+CREATE TABLE registration_token
+(
+    id           BIGINT generated always as identity,
+    token        VARCHAR(50) NOT NULL,
+    email        VARCHAR(255) NOT NULL,
+    expiry_time  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    CONSTRAINT pk_registration_token PRIMARY KEY (id)
+);
+
+ALTER TABLE registration_token ADD CONSTRAINT uc_registration_token_token UNIQUE (token);

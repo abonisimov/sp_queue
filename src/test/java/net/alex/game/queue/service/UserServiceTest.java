@@ -1,6 +1,7 @@
 package net.alex.game.queue.service;
 
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
 import net.alex.game.queue.AbstractUserTest;
 import net.alex.game.queue.config.security.AccessTokenService;
 import net.alex.game.queue.exception.*;
@@ -8,7 +9,7 @@ import net.alex.game.queue.model.UserStatus;
 import net.alex.game.queue.model.in.*;
 import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.entity.AccessTokenEntity;
-import net.alex.game.queue.persistence.entity.RestorePasswordTokenEntity;
+import net.alex.game.queue.persistence.entity.PasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.apache.commons.lang3.StringUtils;
@@ -40,60 +41,61 @@ class UserServiceTest extends AbstractUserTest {
     }
 
     @Test
-    void register() {
-        UserOut result = userService.register(UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("test@test.com")
-                .build());
-
-        assertNotNull(result);
-        assertEquals("Nick", result.getNickName());
-        assertEquals("Alex", result.getFirstName());
-        assertEquals("Test", result.getLastName());
-        assertEquals("test@test.com", result.getEmail());
-        assertTrue(result.isEnabled());
-        assertNotNull(result.getRoles());
-        assertEquals(1, result.getRoles().size());
-        assertEquals("USER", result.getRoles().get(0).getName());
-
-        Optional<AccessTokenEntity> tokenEntity = getTokenEntityByUserId(result.getId());
-        assertTrue(tokenEntity.isPresent());
+    void registerRequest() {
+        userService.registerRequest(VALID_EMAIL);
+        assertTrue(registrationTokenRepo.findByEmail(VALID_EMAIL).isPresent());
     }
 
     @Test
-    void register_invalid_email() {
-        UserOut userOut = registerUser();
+    void registerRequest_invalid_email() {
+        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest("broken"));
+    }
 
-        UserPasswordIn userPasswordIn = UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName("Different_Nick")
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email(userOut.getEmail())
-                .build();
+    @Test
+    void registerRequest_null_email() {
+        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest(null));
+    }
 
-        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.register(userPasswordIn));
+    @Test
+    void register() {
+        saveRegistrationToken(VALID_EMAIL, TOKEN, LocalDateTime.now().plusMinutes(1));
+        UserOut result = userService.register(TOKEN, createUserPasswordIn());
+
+        assertNotNull(result);
+        assertEquals(NICK, result.getNickName());
+        assertEquals(NAME, result.getFirstName());
+        assertEquals(LAST_NAME, result.getLastName());
+        assertEquals(VALID_EMAIL, result.getEmail());
+        assertTrue(result.isEnabled());
+        assertNotNull(result.getRoles());
+        assertEquals(1, result.getRoles().size());
+        assertEquals("USER", result.getRoles().get(0).getName());;
+        assertTrue(getTokenEntityByUserId(result.getId()).isPresent());
+
+        assertFalse(registrationTokenRepo.findByToken(TOKEN).isPresent());
+    }
+
+    @Test
+    void register_token_expired() {
+        saveRegistrationToken(VALID_EMAIL, TOKEN, LocalDateTime.now().minusMinutes(1));
+
+        UserPasswordIn userPasswordIn = createUserPasswordIn();
+        assertThrows(TokenExpiredException.class, () -> userService.register(TOKEN, userPasswordIn));
+    }
+
+    @Test
+    void register_token_not_found() {
+        UserPasswordIn userPasswordIn = createUserPasswordIn();
+        assertThrows(ResourceNotFoundException.class, () -> userService.register(TOKEN, userPasswordIn));
     }
 
     @Test
     void register_invalid_nickName() {
         UserOut userOut = registerUser();
-
-        UserPasswordIn userPasswordIn = UserPasswordIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
-                .nickName(userOut.getNickName())
-                .password(VALID_PASSWORD)
-                .matchingPassword(VALID_PASSWORD)
-                .email("different@email.com")
-                .build();
-
-        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.register(userPasswordIn));
+        saveRegistrationToken(VALID_EMAIL, "new_token", LocalDateTime.now().plusMinutes(1));
+        UserPasswordIn userPasswordIn = createUserPasswordIn().toBuilder().
+                nickName(userOut.getNickName()).build();
+        assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.register("new_token", userPasswordIn));
     }
 
     @Test
@@ -318,8 +320,8 @@ class UserServiceTest extends AbstractUserTest {
         UserOut userOut = registerUser();
         long userId = userOut.getId();
         UserIn userIn = UserIn.builder()
-                .firstName("Alex")
-                .lastName("Test")
+                .firstName(NAME)
+                .lastName(LAST_NAME)
                 .nickName(userOut.getNickName())
                 .build();
 
@@ -358,7 +360,7 @@ class UserServiceTest extends AbstractUserTest {
     }
 
     @Test
-    void restorePassword_with_confirmation() {
+    void restorePasswordRequest_with_reply() {
         UserOut userOut = registerUser();
 
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
@@ -367,17 +369,17 @@ class UserServiceTest extends AbstractUserTest {
         String password = userEntity.getPassword();
         String token = tokenEntity.getToken();
 
-        userService.restorePassword(userOut.getEmail());
+        userService.restorePasswordRequest(userOut.getEmail());
 
         userEntity = userRepo.findById(userOut.getId()).orElseThrow();
-        RestorePasswordTokenEntity restorePasswordTokenEntity = restorePasswordTokenRepo.
+        PasswordTokenEntity passwordTokenEntity = passwordTokenRepo.
                 findByUser(userEntity).orElseThrow();
 
-        assertNotNull(restorePasswordTokenEntity.getToken());
-        assertNotNull(restorePasswordTokenEntity.getExpiryTime());
+        assertNotNull(passwordTokenEntity.getToken());
+        assertNotNull(passwordTokenEntity.getExpiryTime());
 
-        userService.confirmRestorePassword(
-                restorePasswordTokenEntity.getToken(),
+        userService.restorePassword(
+                passwordTokenEntity.getToken(),
                 PasswordIn.
                         builder().
                         password(VALID_PASSWORD + "1").
@@ -389,41 +391,43 @@ class UserServiceTest extends AbstractUserTest {
 
         assertNotEquals(password, userEntity.getPassword());
         assertNotEquals(token, tokenEntity.getToken());
+
+        assertFalse(passwordTokenRepo.findByToken(token).isPresent());
     }
 
     @Test
-    void confirmRestorePassword_token_expired() {
+    void restorePasswordRequest_disabled_user() {
+        UserOut userOut = registerDisabledUser();
+        String email = userOut.getEmail();
+        assertThrows(AccessRestrictedException.class, () -> userService.restorePasswordRequest(email));
+    }
+
+    @Test
+    void restorePassword_token_expired() {
         UserOut userOut = registerUser();
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
 
-        saveRestorePasswordToken("token", userEntity, LocalDateTime.now().minusMinutes(1));
+        savePasswordToken(TOKEN, userEntity, LocalDateTime.now().minusMinutes(1));
 
         PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
-        assertThrows(TokenExpiredException.class, () -> userService.confirmRestorePassword("token", passwordIn));
+        assertThrows(TokenExpiredException.class, () -> userService.restorePassword(TOKEN, passwordIn));
     }
 
     @Test
-    void confirmRestorePassword_disabled_user() {
+    void restorePassword_disabled_user() {
         UserOut userOut = registerDisabledUser();
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
 
-        saveRestorePasswordToken("token", userEntity, LocalDateTime.now().plusHours(1));
+        savePasswordToken(TOKEN, userEntity, LocalDateTime.now().plusHours(1));
 
         PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
-        assertThrows(AccessRestrictedException.class, () -> userService.confirmRestorePassword("token", passwordIn));
+        assertThrows(AccessRestrictedException.class, () -> userService.restorePassword(TOKEN, passwordIn));
     }
 
     @Test
-    void confirmRestorePassword_token_not_found() {
+    void restorePassword_token_not_found() {
         PasswordIn passwordIn = PasswordIn.builder().password(VALID_PASSWORD).matchingPassword(VALID_PASSWORD).build();
-        assertThrows(ResourceNotFoundException.class, () -> userService.confirmRestorePassword("token", passwordIn));
-    }
-
-    @Test
-    void restorePassword_disabledUser() {
-        UserOut userOut = registerDisabledUser();
-        String email = userOut.getEmail();
-        assertThrows(AccessRestrictedException.class, () -> userService.restorePassword(email));
+        assertThrows(ResourceNotFoundException.class, () -> userService.restorePassword(TOKEN, passwordIn));
     }
 
     @Test

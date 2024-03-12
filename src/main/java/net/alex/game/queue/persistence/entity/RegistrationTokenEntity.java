@@ -17,11 +17,11 @@ import java.util.Objects;
 @Setter
 @ToString
 @Entity
-@Table(name = "restore_password_token")
-public class RestorePasswordTokenEntity implements Serializable {
+@Table(name = "registration_token")
+public class RegistrationTokenEntity implements Serializable {
 
     @Serial
-    private static final long serialVersionUID = -9032794203463424264L;
+    private static final long serialVersionUID = -4247710961221759320L;
 
     public static final int TOKEN_TTL_HOURS = 24;
 
@@ -34,9 +34,9 @@ public class RestorePasswordTokenEntity implements Serializable {
     @Column(unique = true)
     private String token;
 
-    @OneToOne(targetEntity = UserEntity.class, fetch = FetchType.EAGER)
-    @JoinColumn(nullable = false, name = "user_id", foreignKey = @ForeignKey(name = "fk_restore_password_token_on_user"))
-    private UserEntity user;
+    @NotNull
+    @Size(max=255)
+    private String email;
 
     @NotNull
     private LocalDateTime expiryTime;
@@ -45,7 +45,7 @@ public class RestorePasswordTokenEntity implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        RestorePasswordTokenEntity that = (RestorePasswordTokenEntity) o;
+        RegistrationTokenEntity that = (RegistrationTokenEntity) o;
         return id != null && Objects.equals(id, that.id);
     }
 
