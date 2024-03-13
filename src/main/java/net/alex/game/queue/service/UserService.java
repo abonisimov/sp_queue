@@ -5,7 +5,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.queue.config.security.TokenAuthentication;
+import net.alex.game.queue.config.security.RoleRestrictionRules;
 import net.alex.game.queue.exception.*;
 import net.alex.game.queue.model.in.*;
 import net.alex.game.queue.model.out.UserOut;
@@ -14,7 +14,6 @@ import net.alex.game.queue.persistence.repo.*;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +21,11 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
+import static net.alex.game.queue.persistence.RoleName.USER;
 import static net.alex.game.queue.persistence.entity.PasswordTokenEntity.TOKEN_TTL_HOURS;
 
 @Slf4j
@@ -43,6 +43,7 @@ public class UserService {
     private final RegistrationTokenRepo registrationTokenRepo;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final RoleRestrictionRules roleRestrictionRules;
 
     public UserService(UserRepo userRepo,
                        RoleRepo roleRepo,
@@ -50,7 +51,8 @@ public class UserService {
                        PasswordTokenRepo passwordTokenRepo,
                        RegistrationTokenRepo registrationTokenRepo,
                        PasswordEncoder passwordEncoder,
-                       MailService mailService) {
+                       MailService mailService,
+                       RoleRestrictionRules roleRestrictionRules) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.accessTokenRepo = accessTokenRepo;
@@ -58,10 +60,11 @@ public class UserService {
         this.registrationTokenRepo = registrationTokenRepo;
         this.passwordEncoder = passwordEncoder;
         this.mailService = mailService;
+        this.roleRestrictionRules = roleRestrictionRules;
     }
 
     @Transactional
-    public void registerRequest(String email) {
+    public void registerRequest(String email, Locale locale) {
         if (!EmailValidator.getInstance().isValid(email)) {
             throw new ConstraintViolationException("Invalid email provided", null);
         }
@@ -72,7 +75,7 @@ public class UserService {
         entity.setEmail(email);
         entity.setExpiryTime(LocalDateTime.now().plusHours(TOKEN_TTL_HOURS));
         registrationTokenRepo.save(entity);
-        mailService.sendRegistrationMail(token);
+        mailService.sendRegistrationMail(email, token, locale);
     }
 
     @Transactional
@@ -91,6 +94,7 @@ public class UserService {
         userEntity.setLastName(userPasswordIn.getLastName());
         userEntity.setNickName(userPasswordIn.getNickName());
         userEntity.setEmail(registrationTokenEntity.getEmail());
+        userEntity.setLocale(userPasswordIn.getLocale());
         userEntity.setEnabled(true);
         userEntity.setPassword(passwordEncoder.encode(userPasswordIn.getPassword()));
         userEntity.setRoles(Collections.singleton(getUserRole()));
@@ -158,9 +162,8 @@ public class UserService {
     @Transactional
     public void changeUserStatus(long userId, UserStatusIn userStatusIn) {
         log.info("Changing user's {} status to {}", userId, userStatusIn.getUserStatus());
-        Optional<UserEntity> optionalUserEntity = userRepo.findById(userId);
-        UserEntity userEntity = optionalUserEntity.orElseThrow(ResourceNotFoundException::new);
-        assertTargetIsValid(userEntity);
+        UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        roleRestrictionRules.assertActionsAppliedToMinorPrivilegesOnly(userEntity.getRoles());
         userEntity.setEnabled(userStatusIn.getUserStatus().isEnabled());
         userRepo.save(userEntity);
     }
@@ -168,11 +171,9 @@ public class UserService {
     @Transactional
     public void deleteUser(long userId) {
         log.warn("Removing user {}", userId);
-        Optional<UserEntity> optionalUserEntity = userRepo.findById(userId);
-        UserEntity userEntity = optionalUserEntity.orElseThrow(ResourceNotFoundException::new);
-        assertTargetIsValid(userEntity);
-        Optional<AccessTokenEntity> optionalTokenEntity = accessTokenRepo.findByUser(userEntity);
-        optionalTokenEntity.ifPresent(accessTokenRepo::delete);
+        UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        roleRestrictionRules.assertActionsAppliedToMinorPrivilegesOnly(userEntity.getRoles());
+        accessTokenRepo.findByUser(userEntity).ifPresent(accessTokenRepo::delete);
         userRepo.delete(userEntity);
     }
 
@@ -193,6 +194,7 @@ public class UserService {
         userEntity.setFirstName(userIn.getFirstName());
         userEntity.setLastName(userIn.getLastName());
         userEntity.setNickName(userIn.getNickName());
+        userEntity.setLocale(userIn.getLocale());
         userEntity = userRepo.save(userEntity);
         return UserOut.fromUserEntity(userEntity);
     }
@@ -243,19 +245,9 @@ public class UserService {
         }
     }
 
-    public RoleEntity getUserRole() {
-        return getRole("USER", Optional.empty());
-    }
-
-    @Transactional
-    public RoleEntity getRole(String roleName, Optional<Long> resourceId) {
-        Optional<RoleEntity> optionalRole;
-        if (resourceId.isPresent()) {
-            optionalRole = roleRepo.findByNameAndResourceId(roleName, resourceId.get());
-        } else {
-            optionalRole = roleRepo.findByName(roleName);
-        }
-        return optionalRole.orElseGet(() -> roleRepo.save(new RoleEntity(roleName, resourceId.orElse(null))));
+    private RoleEntity getUserRole() {
+        Optional<RoleEntity> optionalRole = roleRepo.findByName(USER.name());
+        return optionalRole.orElseGet(() -> roleRepo.save(new RoleEntity(USER.name(), null, USER.getRank())));
     }
 
     private void assertUniqueEmail(String email) {
@@ -288,19 +280,5 @@ public class UserService {
         byte[] randomBytes = new byte[TOKEN_BYTES_NUMBER];
         SECURE_RANDOM.nextBytes(randomBytes);
         return BASE64_ENCODER.encodeToString(randomBytes);
-    }
-
-    private void assertTargetIsValid(UserEntity target) {
-        Set<RoleEntity> roles = target.getRoles();
-        boolean isTargetAdmin = roles.stream().anyMatch(r -> r.getName().equals("ADMIN"));
-        boolean isTargetRoot = roles.stream().anyMatch(r -> r.getName().equals("ROOT"));
-
-        TokenAuthentication tokenAuthentication = (TokenAuthentication)
-                SecurityContextHolder.getContext().getAuthentication();
-        boolean isUserRoot = tokenAuthentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROOT"));
-
-        if ((!isUserRoot && (isTargetRoot || isTargetAdmin)) || (isUserRoot && isTargetRoot)) {
-            throw new AccessRestrictedException();
-        }
     }
 }

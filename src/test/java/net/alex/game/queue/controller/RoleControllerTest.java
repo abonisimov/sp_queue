@@ -1,19 +1,19 @@
 package net.alex.game.queue.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.service.ThreadService;
+import net.alex.game.queue.service.RoleService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
-
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
 import static net.alex.game.queue.persistence.RoleName.ADMIN;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -22,28 +22,34 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class ThreadControllerTest extends AbstractUserTest {
+class RoleControllerTest extends AbstractUserTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
-    @MockBean
-    private ThreadService service;
+    @SpyBean
+    private RoleService service;
 
     @Test
-    void getThreadStatistics() throws Exception {
-        doReturn(null).when(service).getThreadStatistics(anyLong());
-        mockMvc.perform(get("/v1/api/game/threads/1").contentType(MediaType.APPLICATION_JSON)).
+    void getRoles() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doReturn(null).when(service).getRoles(any());
+        mockMvc.perform(get("/v1/api/game/roles").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token)).
                 andDo(print()).
                 andExpect(status().isOk());
     }
 
     @Test
-    void getThreadStatisticsList() throws Exception {
+    void getUsers() throws Exception {
         cleanUserRecords();
         String token = createTokenWithRole(ADMIN);
-
-        doReturn(Collections.emptyList()).when(service).getThreadStatisticsList();
-        mockMvc.perform(get("/v1/api/game/threads").contentType(MediaType.APPLICATION_JSON).
+        doReturn(null).when(service).getUsers(anyLong(), any());
+        mockMvc.perform(get("/v1/api/game/roles/1/users").
+                        contentType(MediaType.APPLICATION_JSON).
                         header(AUTH_TOKEN_HEADER_NAME, token)).
                 andDo(print()).
                 andExpect(status().isOk());

@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.util.Locale;
+
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
@@ -21,4 +23,6 @@ public class UserIn {
     @NotNull(message = "Nick name is mandatory")
     @Size(min = 4, max=50, message = "Nick name length must be greater than {min} and less than {max}")
     private String nickName;
+
+    private Locale locale;
 }

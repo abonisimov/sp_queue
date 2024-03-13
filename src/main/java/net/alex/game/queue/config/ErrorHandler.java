@@ -1,6 +1,7 @@
 package net.alex.game.queue.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.annotation.HttpStatusMapping;
 import net.alex.game.queue.exception.ResourceAlreadyRegisteredException;
@@ -8,6 +9,7 @@ import net.alex.game.queue.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -84,6 +86,30 @@ public class ErrorHandler {
         errorBody.put(MESSAGE, isAuthenticated ? error.getMessage() : "Authentication is required");
         return ResponseEntity
                 .status(isAuthenticated ? HttpStatus.FORBIDDEN.value() : HttpStatus.UNAUTHORIZED.value())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(errorBody);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> onError(HttpMessageNotReadableException error) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put(MESSAGE, error.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(errorBody);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> onError(ConstraintViolationException error) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put(MESSAGE, error.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(errorBody);
     }

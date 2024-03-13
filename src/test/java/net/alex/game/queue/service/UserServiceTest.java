@@ -3,7 +3,6 @@ package net.alex.game.queue.service;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import net.alex.game.queue.AbstractUserTest;
-import net.alex.game.queue.config.security.AccessTokenService;
 import net.alex.game.queue.exception.*;
 import net.alex.game.queue.model.UserStatus;
 import net.alex.game.queue.model.in.*;
@@ -15,25 +14,21 @@ import net.alex.game.queue.persistence.entity.UserEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Optional;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
+import static net.alex.game.queue.persistence.RoleName.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class UserServiceTest extends AbstractUserTest {
-
-    @Autowired
-    private AccessTokenService accessTokenService;
 
     @BeforeEach
     void beforeEach() {
@@ -42,18 +37,20 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void registerRequest() {
-        userService.registerRequest(VALID_EMAIL);
+        userService.registerRequest(VALID_EMAIL, Locale.getDefault());
         assertTrue(registrationTokenRepo.findByEmail(VALID_EMAIL).isPresent());
     }
 
     @Test
     void registerRequest_invalid_email() {
-        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest("broken"));
+        Locale locale = Locale.getDefault();
+        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest("broken", locale));
     }
 
     @Test
     void registerRequest_null_email() {
-        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest(null));
+        Locale locale = Locale.getDefault();
+        assertThrows(ConstraintViolationException.class, () -> userService.registerRequest(null, locale));
     }
 
     @Test
@@ -66,10 +63,12 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(NAME, result.getFirstName());
         assertEquals(LAST_NAME, result.getLastName());
         assertEquals(VALID_EMAIL, result.getEmail());
+        assertEquals(Locale.getDefault(), result.getLocale());
         assertTrue(result.isEnabled());
         assertNotNull(result.getRoles());
         assertEquals(1, result.getRoles().size());
-        assertEquals("USER", result.getRoles().get(0).getName());;
+        assertEquals(USER.name(), result.getRoles().get(0).getName());
+        assertEquals(USER.getRank(), result.getRoles().get(0).getRank());
         assertTrue(getTokenEntityByUserId(result.getId()).isPresent());
 
         assertFalse(registrationTokenRepo.findByToken(TOKEN).isPresent());
@@ -118,7 +117,7 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(userOut.isEnabled(), result.isEnabled());
         assertNotNull(result.getRoles());
         assertEquals(1, result.getRoles().size());
-        assertEquals("USER", result.getRoles().get(0).getName());
+        assertEquals(USER.name(), result.getRoles().get(0).getName());
         assertNotNull(result.getLastLogin());
         assertTrue(response.containsHeader(AUTH_TOKEN_HEADER_NAME));
 
@@ -225,13 +224,8 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void changeUserStatus() {
-        UserOut userOut = registerUser();
+        UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN);
         long userId = userOut.getId();
-
-        String token = createTokenByRole(userOut.getNickName() + "x", userOut.getEmail() + "x", "ADMIN", Optional.empty());
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
-        SecurityContextHolder.getContext().setAuthentication(accessTokenService.getAuthentication(request).orElseThrow());
 
         userService.changeUserStatus(userId, new UserStatusIn(UserStatus.DISABLE));
         assertFalse(userRepo.findById(userId).orElseThrow().isEnabled());
@@ -246,14 +240,36 @@ class UserServiceTest extends AbstractUserTest {
     }
 
     @Test
-    void deleteUser() {
-        UserOut userOut = registerUser();
+    void changeUserStatus_same_rank() {
+        UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN, ADMIN);
         long userId = userOut.getId();
 
-        String token = createTokenByRole(userOut.getNickName() + "x", userOut.getEmail() + "x", "ADMIN", Optional.empty());
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
-        SecurityContextHolder.getContext().setAuthentication(accessTokenService.getAuthentication(request).orElseThrow());
+        UserStatusIn userStatusIn = new UserStatusIn(UserStatus.DISABLE);
+        assertThrows(AccessRestrictedException.class, () -> userService.changeUserStatus(userId, userStatusIn));
+    }
+
+    @Test
+    void changeUserStatus_more_important_rank() {
+        UserOut userOut = createTargetAndPrincipalWithRoles(ROOT, ADMIN);
+        long userId = userOut.getId();
+
+        UserStatusIn userStatusIn = new UserStatusIn(UserStatus.DISABLE);
+        assertThrows(AccessRestrictedException.class, () -> userService.changeUserStatus(userId, userStatusIn));
+    }
+
+    @Test
+    void changeUserStatus_self() {
+        UserOut userOut = createUserWithRole(ROOT);
+        long userId = userOut.getId();
+
+        UserStatusIn userStatusIn = new UserStatusIn(UserStatus.DISABLE);
+        assertThrows(AccessRestrictedException.class, () -> userService.changeUserStatus(userId, userStatusIn));
+    }
+
+    @Test
+    void deleteUser() {
+        UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN);
+        long userId = userOut.getId();
 
         userService.deleteUser(userId);
 
@@ -265,6 +281,28 @@ class UserServiceTest extends AbstractUserTest {
     @Test
     void deleteUser_invalidUser() {
         assertThrows(ResourceNotFoundException.class, () -> userService.deleteUser(1));
+    }
+
+    @Test
+    void deleteUser_same_rank() {
+        UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN, ADMIN);
+        long userId = userOut.getId();
+        assertThrows(AccessRestrictedException.class, () -> userService.deleteUser(userId));
+    }
+
+    @Test
+    void deleteUser_more_important_rank() {
+        UserOut userOut = createTargetAndPrincipalWithRoles(ROOT, ADMIN);
+        long userId = userOut.getId();
+
+        assertThrows(AccessRestrictedException.class, () -> userService.deleteUser(userId));
+    }
+
+    @Test
+    void deleteUser_self() {
+        UserOut userOut = createUserWithRole(ROOT);
+        long userId = userOut.getId();
+        assertThrows(AccessRestrictedException.class, () -> userService.deleteUser(userId));
     }
 
     @Test
@@ -298,6 +336,7 @@ class UserServiceTest extends AbstractUserTest {
                 firstName(userOut.getFirstName() + 'a').
                 lastName(userOut.getLastName() + 'b').
                 nickName(userOut.getNickName() + 'c').
+                locale(Locale.FRANCE).
                 build();
 
         UserOut result = userService.changeUser(userOut.getId(), userIn);
@@ -306,11 +345,13 @@ class UserServiceTest extends AbstractUserTest {
         assertEquals(userIn.getFirstName(), result.getFirstName());
         assertEquals(userIn.getLastName(), result.getLastName());
         assertEquals(userIn.getNickName(), result.getNickName());
+        assertEquals(userIn.getLocale(), result.getLocale());
 
         UserEntity userEntity = userRepo.findById(result.getId()).orElseThrow();
         assertEquals(userIn.getFirstName(), userEntity.getFirstName());
         assertEquals(userIn.getLastName(), userEntity.getLastName());
         assertEquals(userIn.getNickName(), userEntity.getNickName());
+        assertEquals(userIn.getLocale(), userEntity.getLocale());
 
         assertEquals(userOut.getEmail(), userEntity.getEmail());
     }
@@ -323,6 +364,7 @@ class UserServiceTest extends AbstractUserTest {
                 .firstName(NAME)
                 .lastName(LAST_NAME)
                 .nickName(userOut.getNickName())
+                .locale(Locale.getDefault())
                 .build();
 
         assertThrows(ResourceAlreadyRegisteredException.class, () -> userService.changeUser(userId, userIn));
@@ -330,7 +372,7 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void isTokenValid() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         MockHttpServletResponse response = new MockHttpServletResponse();
         assertTrue(userService.isTokenValid(token, response));
         assertEquals(token, response.getHeader(AUTH_TOKEN_HEADER_NAME));
@@ -338,7 +380,7 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void isTokenValid_expired() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         AccessTokenEntity accessTokenEntity = accessTokenRepo.findByToken(token).orElseThrow();
         accessTokenEntity.setExpiryDate(LocalDateTime.now().minusMinutes(1));
         accessTokenRepo.save(accessTokenEntity);
@@ -349,7 +391,7 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void isTokenValid_userBlocked() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         AccessTokenEntity accessTokenEntity = accessTokenRepo.findByToken(token).orElseThrow();
         UserEntity userEntity = accessTokenEntity.getUser();
         userEntity.setEnabled(false);
@@ -432,26 +474,27 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void getUserRole() {
-        RoleEntity roleEntity = userService.getUserRole();
+        RoleEntity roleEntity = getRole(USER, Optional.empty());
         assertNotNull(roleEntity);
         assertNotNull(roleEntity.getId());
-        assertEquals("USER", roleEntity.getName());
+        assertEquals(USER.name(), roleEntity.getName());
         assertNull(roleEntity.getResourceId());
 
-        RoleEntity roleEntity2 = userService.getUserRole();
+        RoleEntity roleEntity2 = getRole(USER, Optional.empty());
         assertNotNull(roleEntity2);
         assertEquals(roleEntity, roleEntity2);
     }
 
     @Test
     void getRole() {
-        RoleEntity roleEntity = userService.getRole("OWNER", Optional.of(10L));
+        RoleEntity roleEntity = getRole(OWNER, Optional.of(10L));
         assertNotNull(roleEntity);
         assertNotNull(roleEntity.getId());
-        assertEquals("OWNER", roleEntity.getName());
+        assertEquals(OWNER.name(), roleEntity.getName());
         assertEquals(Long.valueOf(10L), roleEntity.getResourceId());
+        assertEquals(OWNER.getRank(), roleEntity.getRank());
 
-        RoleEntity roleEntity2 = userService.getRole("OWNER", Optional.of(10L));
+        RoleEntity roleEntity2 = getRole(OWNER, Optional.of(10L));
         assertNotNull(roleEntity2);
         assertEquals(roleEntity, roleEntity2);
     }

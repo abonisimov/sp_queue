@@ -5,7 +5,6 @@ import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.Authentication;
@@ -14,13 +13,11 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
+import static net.alex.game.queue.persistence.RoleName.USER;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class AccessTokenServiceTest extends AbstractUserTest {
-
-    @Autowired
-    private AccessTokenService accessTokenService;
 
     @BeforeEach
     void beforeEach() {
@@ -29,7 +26,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
 
     @Test
     void getAuthentication() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(AUTH_TOKEN_HEADER_NAME, token);
         Optional<Authentication> authenticationOptional = accessTokenService.getAuthentication(request);
@@ -38,7 +35,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
         Authentication authentication = authenticationOptional.get();
         assertEquals(token, authentication.getCredentials());
         assertTrue(authentication.isAuthenticated());
-        assertTrue(authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("USER")));
+        assertTrue(authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(USER.name())));
         assertNotNull(authentication.getPrincipal());
 
         UserEntity userEntity = accessTokenRepo.findByToken(token).orElseThrow().getUser();
@@ -54,7 +51,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
 
     @Test
     void getAuthentication_expired_token() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         Optional<AccessTokenEntity> tokenEntity = accessTokenRepo.findByToken(token);
         tokenEntity.orElseThrow().setExpiryDate(LocalDateTime.now().minusMinutes(1));
         accessTokenRepo.save(tokenEntity.get());
@@ -68,7 +65,7 @@ class AccessTokenServiceTest extends AbstractUserTest {
 
     @Test
     void getAuthentication_disabled_user() {
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         Optional<AccessTokenEntity> tokenEntity = accessTokenRepo.findByToken(token);
         UserEntity userEntity = tokenEntity.orElseThrow().getUser();
         userEntity.setEnabled(false);

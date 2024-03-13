@@ -13,4 +13,5 @@ public interface UserRepo extends CrudRepository<UserEntity, Long> {
     Page<UserEntity> findAll(Pageable pageable);
     boolean existsByEmail(String email);
     boolean existsByNickName(String nickName);
+    Page<UserEntity> findAllByRolesId(long roleId, Pageable pageable);
 }
