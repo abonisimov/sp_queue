@@ -28,31 +28,46 @@ public class RoleRestrictionRules {
         }
     }
 
-    public void assertAllowedToGrantRoles(List<RoleIn> targetRoles) {
+    public void assertAllowedToAssignRoles(List<RoleIn> targetRoles) {
         TokenAuthentication tokenAuthentication = getAuthentication();
         for (RoleIn roleIn : targetRoles) {
-            assertAllowToGrantRole(toRoleOut(roleIn), toRoleOutList(tokenAuthentication));
+            assertAllowedActionWithRole(toRoleOut(roleIn), toRoleOutList(tokenAuthentication), RoleAction.ASSIGN);
         }
     }
 
-    private void assertAllowToGrantRole(RoleOut targetRole, List<RoleOut> principalRoles) {
-        long principalRank = getRank(principalRoles);
-        if (targetRole.getRank() < principalRank) {
-            throw new AccessRestrictedException();
-        } else {
-            boolean requiresResource = isMaxRoleRequiresResource(principalRoles);
-            if (requiresResource) {
-                boolean foundAllowingRole = false;
-                for (RoleOut principalRole : getRolesWithResource(principalRoles)) {
-                    if (assertAllowedToGrantResourceRole(targetRole, principalRole)) {
-                        foundAllowingRole = true;
-                        break;
-                    }
-                }
-                if (!foundAllowingRole) {
-                    throw new AccessRestrictedException();
+    public void assertAllowedToUnassignRoles(List<RoleIn> targetRoles) {
+        TokenAuthentication tokenAuthentication = getAuthentication();
+        for (RoleIn roleIn : targetRoles) {
+            assertAllowedActionWithRole(toRoleOut(roleIn), toRoleOutList(tokenAuthentication), RoleAction.UNASSIGN);
+        }
+    }
+
+    public void assertAllowedActionWithRole(RoleOut targetRole,
+                                            List<RoleOut> principalRoles,
+                                            RoleAction roleAction) {
+        checkRankForActionsWithRole(targetRole, principalRoles, roleAction);
+        boolean requiresResource = isMaxRoleRequiresResource(principalRoles);
+        if (requiresResource) {
+            boolean foundAllowingRole = false;
+            for (RoleOut principalRole : getRolesWithResource(principalRoles)) {
+                if (assertAllowedToAssignResourceRole(targetRole, principalRole)) {
+                    foundAllowingRole = true;
+                    break;
                 }
             }
+            if (!foundAllowingRole) {
+                throw new AccessRestrictedException();
+            }
+        }
+    }
+
+    private void checkRankForActionsWithRole(RoleOut targetRole,
+                                             List<RoleOut> principalRoles,
+                                             RoleAction roleAction) {
+        long principalRank = getRank(principalRoles);
+        if ((roleAction == RoleAction.ASSIGN && targetRole.getRank() < principalRank) ||
+                (roleAction == RoleAction.UNASSIGN && targetRole.getRank() <= principalRank)) {
+            throw new AccessRestrictedException();
         }
     }
 
@@ -105,7 +120,12 @@ public class RoleRestrictionRules {
         return principalRoles.stream().filter(r -> RoleName.valueOf(r.getName()).isResourceIdRequired()).toList();
     }
 
-    private boolean assertAllowedToGrantResourceRole(RoleOut targetRole, RoleOut principalRole) {
+    private boolean assertAllowedToAssignResourceRole(RoleOut targetRole, RoleOut principalRole) {
         return targetRole.getResourceId().equals(principalRole.getResourceId());
+    }
+
+    public enum RoleAction {
+        ASSIGN,
+        UNASSIGN
     }
 }

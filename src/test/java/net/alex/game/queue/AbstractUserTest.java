@@ -115,7 +115,7 @@ public abstract class AbstractUserTest {
                                       String email,
                                       RoleName roleName,
                                       Optional<Long> resourceId) {
-        UserOut userOut = registerUniqueUser(nickName, email);
+        UserOut userOut = registerUniqueUser(email, nickName);
         return createTokenWithRoleForUser(userOut, roleName, resourceId);
     }
 

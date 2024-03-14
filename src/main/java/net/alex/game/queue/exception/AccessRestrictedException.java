@@ -12,6 +12,6 @@ public class AccessRestrictedException extends RuntimeException {
     private static final long serialVersionUID = 2007037505488768951L;
 
     public AccessRestrictedException() {
-        super("Access is restricted for this user");
+        super("Access is restricted");
     }
 }

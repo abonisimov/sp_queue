@@ -19,6 +19,7 @@ import static net.alex.game.queue.persistence.RoleName.ADMIN;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,6 +79,57 @@ class UserRoleControllerTest extends AbstractUserTest {
         String token = createTokenWithRole(ADMIN);
         doNothing().when(service).assignRoles(anyLong(), anyList());
         mockMvc.perform(put("/v1/api/game/users/1/roles/assign").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token).
+                        content(MAPPER.writeValueAsString(Collections.emptyList()))).
+                andDo(print()).
+                andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unassignRoles() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doNothing().when(service).unassignRoles(anyLong(), anyList());
+        mockMvc.perform(delete("/v1/api/game/users/1/roles/unassign").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token).
+                        content(MAPPER.writeValueAsString(Collections.singletonList(new RoleIn(ADMIN.name(), null))))).
+                andDo(print()).
+                andExpect(status().isOk());
+    }
+
+    @Test
+    void unassignRoles_empty_body() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doNothing().when(service).unassignRoles(anyLong(), anyList());
+        mockMvc.perform(delete("/v1/api/game/users/1/roles/unassign").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token)).
+                andDo(print()).
+                andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unassignRoles_invalid_role() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doNothing().when(service).unassignRoles(anyLong(), anyList());
+        mockMvc.perform(delete("/v1/api/game/users/1/roles/unassign").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token).
+                        content(MAPPER.writeValueAsString(Collections.singletonList(new RoleIn("INVALID", null))))).
+                andDo(print()).
+                andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unassignRoles_empty_list() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doNothing().when(service).unassignRoles(anyLong(), anyList());
+        mockMvc.perform(delete("/v1/api/game/users/1/roles/unassign").
                         contentType(MediaType.APPLICATION_JSON).
                         header(AUTH_TOKEN_HEADER_NAME, token).
                         content(MAPPER.writeValueAsString(Collections.emptyList()))).

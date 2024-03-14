@@ -2,6 +2,7 @@ package net.alex.game.queue.service;
 
 import jakarta.transaction.Transactional;
 import net.alex.game.queue.config.security.RoleRestrictionRules;
+import net.alex.game.queue.exception.ResourceNotFoundException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.persistence.RoleName;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -10,7 +11,6 @@ import net.alex.game.queue.persistence.repo.RoleRepo;
 import net.alex.game.queue.persistence.repo.UserRepo;
 import org.springframework.stereotype.Service;
 
-import java.lang.module.ResolutionException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -32,10 +32,14 @@ public class UserRoleService {
 
     @Transactional
     public void assignRoles(long userId, List<RoleIn> roles) {
-        UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResolutionException::new);
-        roleRestrictionRules.assertAllowedToGrantRoles(roles);
+        UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        roleRestrictionRules.assertAllowedToAssignRoles(roles);
         userEntity.setRoles(mergeRoles(roles, userEntity.getRoles()));
         userRepo.save(userEntity);
+    }
+
+    public void unassignRoles(long userId, List<RoleIn> roles) {
+
     }
 
     private Set<RoleEntity> mergeRoles(List<RoleIn> claiming, Set<RoleEntity> current) {
@@ -53,7 +57,7 @@ public class UserRoleService {
     private List<RoleEntity> getRolesPile(RoleIn role) {
         RoleName roleName = RoleName.valueOf(role.getName());
         return Arrays.stream(RoleName.values()).
-                filter(r -> roleName.isResourceIdRequired() == r.isResourceIdRequired()).
+                filter(r -> roleName.isResourceIdRequired() == r.isResourceIdRequired() && roleName.getRank() <= r.getRank()).
                 map(e -> new RoleEntity(e.name(), role.getResourceId(), e.getRank())).
                 toList();
     }

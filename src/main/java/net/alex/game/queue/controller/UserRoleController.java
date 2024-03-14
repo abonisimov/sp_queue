@@ -62,4 +62,39 @@ public class UserRoleController {
                             @RequestBody @NotEmpty final List<@Valid RoleIn> roles) {
         userRoleService.assignRoles(userId, roles);
     }
+
+    @Operation(summary = "Unassign roles from user",
+            tags = {"user", "role"},
+            method = "DELETE",
+            security = @SecurityRequirement(name = "api_key", scopes = { "ADMIN" }),
+            responses = {
+                    @ApiResponse(responseCode = "200",
+                            description = "Success",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "400",
+                            description = "Invalid or empty incoming roles list",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "401",
+                            description = "Invalid credentials",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "403",
+                            description = "Access denied, account is blocked or action is restricted",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "404",
+                            description = "Specified user is not found",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            })
+    @DeleteMapping(value ="/users/{userId}/roles/unassign", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void unassignRoles(@Parameter(description = "User id")
+                            @PathVariable(value = "userId") long userId,
+                            @Parameter(content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    array = @ArraySchema(schema = @Schema(implementation = RoleIn.class))))
+                            @RequestBody @NotEmpty final List<@Valid RoleIn> roles) {
+        userRoleService.unassignRoles(userId, roles);
+    }
 }

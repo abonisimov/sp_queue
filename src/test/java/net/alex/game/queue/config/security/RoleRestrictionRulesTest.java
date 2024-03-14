@@ -53,22 +53,22 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
     }
 
     @Test
-    void assertAllowedToGrantRoles() {
-        assertNoExceptionForGrantRoles(roles(role(ROOT)), roles(role(ADMIN)));
-        assertNoExceptionForGrantRoles(roles(role(ADMIN)), roles(role(ADMIN)));
-        assertNoExceptionForGrantRoles(roles(role(ADMIN), role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertNoExceptionForGrantRoles(roles(role(OWNER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
-        assertNoExceptionForGrantRoles(roles(role(MEMBER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+    void assertAllowedToAssignRoles() {
+        assertNoExceptionToAssignRoles(roles(role(ROOT)), roles(role(ADMIN)));
+        assertNoExceptionToAssignRoles(roles(role(ADMIN)), roles(role(ADMIN)));
+        assertNoExceptionToAssignRoles(roles(role(ADMIN), role(OWNER, 1L)), roles(role(MEMBER, 2L)));
+        assertNoExceptionToAssignRoles(roles(role(OWNER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+        assertNoExceptionToAssignRoles(roles(role(MEMBER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
     }
 
     @Test
-    void assertAllowedToGrantRoles_invalid() {
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(ADMIN)), roles(role(ROOT)));
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(USER)), roles(role(ROOT)));
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(USER)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(MEMBER, 1L)), roles(role(OWNER, 1L)));
-        assertAccessRestrictedExceptionForGrantRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
+    void assertAllowedToAssignRoles_invalid() {
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(ADMIN)), roles(role(ROOT)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(USER)), roles(role(ROOT)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(OWNER, 1L)), roles(role(MEMBER, 2L)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(USER)), roles(role(MEMBER, 2L)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, 1L)), roles(role(OWNER, 1L)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
     }
 
     private RoleEntity toRoleEntity(RoleOut roleOut) {
@@ -79,18 +79,18 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
         return roleEntity;
     }
 
-    private void assertNoExceptionForGrantRoles(List<RoleIn> principalRoles,
+    private void assertNoExceptionToAssignRoles(List<RoleIn> principalRoles,
                                                 List<RoleIn> requestedRoles) {
         cleanUserRecords();
         createTargetAndPrincipalWithRoles(Collections.emptyList(), principalRoles);
-        rules.assertAllowedToGrantRoles(requestedRoles);
+        rules.assertAllowedToAssignRoles(requestedRoles);
     }
 
-    private void assertAccessRestrictedExceptionForGrantRoles(List<RoleIn> principalRoles,
+    private void assertAccessRestrictedExceptionToAssignRoles(List<RoleIn> principalRoles,
                                                               List<RoleIn> requestedRoles) {
         cleanUserRecords();
         createTargetAndPrincipalWithRoles(Collections.emptyList(), principalRoles);
-        assertThrows(AccessRestrictedException.class, () -> rules.assertAllowedToGrantRoles(requestedRoles));
+        assertThrows(AccessRestrictedException.class, () -> rules.assertAllowedToAssignRoles(requestedRoles));
     }
 
     private List<RoleIn> roles(RoleIn... roles) {
