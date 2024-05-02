@@ -16,11 +16,10 @@ import java.util.Collections;
 
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
 import static net.alex.game.queue.persistence.RoleName.ADMIN;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.mockito.Mockito.doReturn;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -135,5 +134,29 @@ class UserRoleControllerTest extends AbstractUserTest {
                         content(MAPPER.writeValueAsString(Collections.emptyList()))).
                 andDo(print()).
                 andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void assignRolesCandidates() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doReturn(null).when(service).assignRolesCandidates(anyLong(), any());
+        mockMvc.perform(get("/v1/api/game/users/1/roles/assign/candidates").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token)).
+                andDo(print()).
+                andExpect(status().isOk());
+    }
+
+    @Test
+    void unassignRolesCandidates() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doReturn(null).when(service).unassignRolesCandidates(anyLong(), any());
+        mockMvc.perform(get("/v1/api/game/users/1/roles/unassign/candidates").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token)).
+                andDo(print()).
+                andExpect(status().isOk());
     }
 }

@@ -15,6 +15,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static net.alex.game.queue.persistence.RoleName.USER;
+
 @Component
 public class RoleRestrictionRules {
 
@@ -31,26 +33,31 @@ public class RoleRestrictionRules {
     public void assertAllowedToAssignRoles(List<RoleIn> targetRoles) {
         TokenAuthentication tokenAuthentication = getAuthentication();
         for (RoleIn roleIn : targetRoles) {
-            assertAllowedActionWithRole(toRoleOut(roleIn), toRoleOutList(tokenAuthentication), RoleAction.ASSIGN);
+            assertAllowedActionWithRole(roleIn, tokenAuthentication, RoleAction.ASSIGN);
         }
     }
 
     public void assertAllowedToUnassignRoles(List<RoleIn> targetRoles) {
         TokenAuthentication tokenAuthentication = getAuthentication();
         for (RoleIn roleIn : targetRoles) {
-            assertAllowedActionWithRole(toRoleOut(roleIn), toRoleOutList(tokenAuthentication), RoleAction.UNASSIGN);
+            assertAllowedActionWithRole(roleIn, tokenAuthentication, RoleAction.UNASSIGN);
         }
     }
 
-    public void assertAllowedActionWithRole(RoleOut targetRole,
-                                            List<RoleOut> principalRoles,
+    public void assertAllowedActionWithRole(RoleIn targetRole,
+                                            TokenAuthentication tokenAuthentication,
                                             RoleAction roleAction) {
-        checkRankForActionsWithRole(targetRole, principalRoles, roleAction);
+        RoleOut targetRoleOut = toRoleOut(targetRole);
+        List<RoleOut> principalRoles = toRoleOutList(tokenAuthentication);
+        if (RoleAction.UNASSIGN.equals(roleAction) && USER.name().equals(targetRoleOut.getName())) {
+            throw new AccessRestrictedException();
+        }
+        checkRankForActionsWithRole(targetRoleOut, principalRoles, roleAction);
         boolean requiresResource = isMaxRoleRequiresResource(principalRoles);
         if (requiresResource) {
             boolean foundAllowingRole = false;
             for (RoleOut principalRole : getRolesWithResource(principalRoles)) {
-                if (assertAllowedToAssignResourceRole(targetRole, principalRole)) {
+                if (assertAllowedToAssignResourceRole(targetRoleOut, principalRole)) {
                     foundAllowingRole = true;
                     break;
                 }
@@ -121,7 +128,8 @@ public class RoleRestrictionRules {
     }
 
     private boolean assertAllowedToAssignResourceRole(RoleOut targetRole, RoleOut principalRole) {
-        return targetRole.getResourceId().equals(principalRole.getResourceId());
+        return targetRole.getResourceId() != null &&
+                targetRole.getResourceId().equals(principalRole.getResourceId());
     }
 
     public enum RoleAction {

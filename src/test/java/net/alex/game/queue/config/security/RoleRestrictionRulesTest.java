@@ -71,6 +71,25 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
         assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
     }
 
+    @Test
+    void assertAllowedToUnassignRoles() {
+        assertNoExceptionToUnassignRoles(roles(role(ROOT)), roles(role(ADMIN)));
+        assertNoExceptionToUnassignRoles(roles(role(ADMIN), role(OWNER, 1L)), roles(role(MEMBER, 2L)));
+        assertNoExceptionToUnassignRoles(roles(role(OWNER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+        assertNoExceptionToUnassignRoles(roles(role(MEMBER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+    }
+
+    @Test
+    void assertAllowedToUnassignRoles_invalid() {
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(ADMIN)), roles(role(ROOT)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(ADMIN)), roles(role(ADMIN)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(USER)), roles(role(ROOT)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(OWNER, 1L)), roles(role(MEMBER, 2L)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(USER)), roles(role(MEMBER, 2L)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, 1L)), roles(role(OWNER, 1L)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
+    }
+
     private RoleEntity toRoleEntity(RoleOut roleOut) {
         RoleEntity roleEntity = new RoleEntity();
         roleEntity.setName(roleOut.getName());
@@ -91,6 +110,20 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
         cleanUserRecords();
         createTargetAndPrincipalWithRoles(Collections.emptyList(), principalRoles);
         assertThrows(AccessRestrictedException.class, () -> rules.assertAllowedToAssignRoles(requestedRoles));
+    }
+
+    private void assertNoExceptionToUnassignRoles(List<RoleIn> principalRoles,
+                                                List<RoleIn> requestedRoles) {
+        cleanUserRecords();
+        createTargetAndPrincipalWithRoles(Collections.emptyList(), principalRoles);
+        rules.assertAllowedToUnassignRoles(requestedRoles);
+    }
+
+    private void assertAccessRestrictedExceptionToUnassignRoles(List<RoleIn> principalRoles,
+                                                              List<RoleIn> requestedRoles) {
+        cleanUserRecords();
+        createTargetAndPrincipalWithRoles(Collections.emptyList(), principalRoles);
+        assertThrows(AccessRestrictedException.class, () -> rules.assertAllowedToUnassignRoles(requestedRoles));
     }
 
     private List<RoleIn> roles(RoleIn... roles) {
