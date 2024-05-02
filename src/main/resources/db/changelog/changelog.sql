@@ -16,6 +16,7 @@ CREATE TABLE user_account
     nick_name   VARCHAR(50) NOT NULL,
     email       VARCHAR(255) NOT NULL,
     password    VARCHAR(60) NOT NULL,
+    locale      VARCHAR(12),
     enabled     BOOLEAN NOT NULL DEFAULT TRUE,
     last_login  TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_user_account PRIMARY KEY (id)
@@ -29,6 +30,7 @@ CREATE TABLE role
     id          BIGINT generated always as identity,
     name        VARCHAR(25) NOT NULL,
     resource_id BIGINT,
+    rank        BIGINT NOT NULL,
     CONSTRAINT pk_role PRIMARY KEY (id)
 );
 

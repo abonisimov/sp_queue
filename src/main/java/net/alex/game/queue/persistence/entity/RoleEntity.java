@@ -36,9 +36,12 @@ public class RoleEntity implements Serializable {
 
     private Long resourceId;
 
-    public RoleEntity(final String name, Long resourceId) {
+    private long rank;
+
+    public RoleEntity(final String name, Long resourceId, long rank) {
         this.name = name;
         this.resourceId = resourceId;
+        this.rank = rank;
     }
 
     @Override

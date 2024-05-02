@@ -16,7 +16,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.util.Locale;
+
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
+import static net.alex.game.queue.persistence.RoleName.ADMIN;
+import static net.alex.game.queue.persistence.RoleName.USER;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.*;
@@ -39,7 +43,7 @@ class UserControllerTest extends AbstractUserTest {
 
     @Test
     void registerRequest() throws Exception {
-        doNothing().when(service).registerRequest(anyString());
+        doNothing().when(service).registerRequest(anyString(), any());
         mockMvc.perform(get("/v1/api/game/users/register/test@test.com").
                         contentType(MediaType.APPLICATION_JSON)).
                 andDo(print()).
@@ -138,7 +142,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void changeUserStatus() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
         doNothing().when(service).changeUserStatus(anyLong(), any());
         mockMvc.perform(put("/v1/api/game/users/1/status").
                         contentType(MediaType.APPLICATION_JSON).
@@ -151,7 +155,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void changeUserStatus_validation() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
 
         mockMvc.perform(put("/v1/api/game/users/1/status").
                         contentType(MediaType.APPLICATION_JSON).
@@ -167,7 +171,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void deleteUser() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
         doNothing().when(service).deleteUser(anyLong());
         mockMvc.perform(delete("/v1/api/game/users/1").
                         contentType(MediaType.APPLICATION_JSON).
@@ -179,7 +183,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void getUser() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
@@ -193,7 +197,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void getUser_foreignId() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         mockMvc.perform(get("/v1/api/game/users/" + userId).
@@ -206,7 +210,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void getUser_as_admin() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
@@ -220,7 +224,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void getUser_as_admin_foreignId() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         doReturn(UserOut.builder().build()).when(service).getUser(anyLong());
@@ -234,7 +238,7 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void getUsersList() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("ADMIN");
+        String token = createTokenWithRole(ADMIN);
         doReturn(null).when(service).getUsers(any());
         mockMvc.perform(get("/v1/api/game/users").
                         contentType(MediaType.APPLICATION_JSON).
@@ -246,13 +250,14 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void changeUser() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
                 .firstName(NAME)
                 .lastName(LAST_NAME)
                 .nickName(NICK)
+                .locale(Locale.getDefault())
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -267,13 +272,14 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void changeUser_foreignId() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId() + 1;
 
         UserIn validUser = UserIn.builder()
                 .firstName(NAME)
                 .lastName(LAST_NAME)
                 .nickName(NICK)
+                .locale(Locale.getDefault())
                 .build();
 
         doReturn(UserOut.builder().build()).when(service).changeUser(anyLong(), any());
@@ -288,13 +294,14 @@ class UserControllerTest extends AbstractUserTest {
     @Test
     void changeUser_validation() throws Exception {
         cleanUserRecords();
-        String token = createTokenByRoleName("USER");
+        String token = createTokenWithRole(USER);
         long userId = accessTokenRepo.findByToken(token).orElseThrow().getUser().getId();
 
         UserIn validUser = UserIn.builder()
                 .firstName(NAME)
                 .lastName(LAST_NAME)
                 .nickName(NICK)
+                .locale(Locale.getDefault())
                 .build();
 
         String uri = "/v1/api/game/users/" + userId;

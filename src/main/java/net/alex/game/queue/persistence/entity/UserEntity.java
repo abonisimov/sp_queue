@@ -12,6 +12,7 @@ import org.hibernate.Hibernate;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -52,6 +53,9 @@ public class UserEntity implements Serializable {
     @Column(length = 60)
     @NotNull
     private String password;
+
+    @Column(length = 12)
+    private Locale locale;
 
     private boolean enabled;
 

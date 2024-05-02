@@ -22,6 +22,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Locale;
+
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
 
 @RestController
@@ -50,8 +52,9 @@ public class UserController {
             })
     @GetMapping(value = "/users/register/{email}", produces = MediaType.APPLICATION_JSON_VALUE)
     public void registerRequest(@Parameter(description = "User email")
-                                @PathVariable(value = "email") String email) {
-        userService.registerRequest(email);
+                                @PathVariable(value = "email") String email,
+                                @RequestHeader(name = "Accept-Language", required = false) Locale locale) {
+        userService.registerRequest(email, locale);
     }
 
     @Operation(summary = "Confirm register new user account",

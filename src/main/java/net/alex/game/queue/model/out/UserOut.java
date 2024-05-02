@@ -7,6 +7,7 @@ import net.alex.game.queue.persistence.entity.UserEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Data
 @Builder
@@ -17,6 +18,7 @@ public class UserOut {
     private String lastName;
     private String nickName;
     private String email;
+    private Locale locale;
     private boolean enabled;
     private List<RoleOut> roles;
     private LocalDateTime lastLogin;
@@ -28,7 +30,8 @@ public class UserOut {
                 .lastName(userEntity.getLastName())
                 .nickName(userEntity.getNickName())
                 .email(userEntity.getEmail())
-                .roles(userEntity.getRoles().stream().map(e -> new RoleOut(e.getName(), e.getResourceId())).toList())
+                .locale(userEntity.getLocale())
+                .roles(userEntity.getRoles().stream().map(RoleOut::fromEntity).toList())
                 .lastLogin(userEntity.getLastLogin())
                 .enabled(userEntity.isEnabled())
                 .build();
