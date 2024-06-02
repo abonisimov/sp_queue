@@ -9,6 +9,7 @@ import net.alex.game.queue.exception.ResourceNotFoundException;
 import net.alex.game.queue.exception.RootRequestDeclinedException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.persistence.RoleName;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import net.alex.game.queue.persistence.repo.RoleRepo;
@@ -61,10 +62,10 @@ public class UserRoleService {
     }
 
     @Transactional
-    public Page<RoleIn> assignRolesCandidates(long userId, Pageable pageable) {
+    public Page<RoleIn> candidateRolesForAssign(long userId, Pageable pageable) {
         UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
         List<RoleIn> userRoles = userEntity.getRoles().stream().
-                map(r -> new RoleIn(r.getName(), r.getResourceId())).toList();
+                map(r -> new RoleIn(r.getName(), r.getRoleResource())).toList();
         TokenAuthentication tokenAuthentication = (TokenAuthentication)
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -72,9 +73,9 @@ public class UserRoleService {
 
         for (RoleName roleName : RoleName.values()) {
             if (roleName.isResourceIdRequired()) {
-                for (Long resourceId : roleRepo.getDistinctResourceId()) {
-                    if (resourceId != null && checkRole(roleName, resourceId, tokenAuthentication, ASSIGN)) {
-                        result.add(RoleIn.builder().name(roleName.name()).resourceId(resourceId).build());
+                for (RoleEntity role : roleRepo.getDistinctRoleResource()) {
+                    if (role != null && checkRole(roleName, role.getRoleResource(), tokenAuthentication, ASSIGN)) {
+                        result.add(RoleIn.builder().name(roleName.name()).roleResource(role.getRoleResource()).build());
                     }
                 }
             } else {
@@ -90,16 +91,16 @@ public class UserRoleService {
     }
 
     @Transactional
-    public Page<RoleIn> unassignRolesCandidates(long userId, Pageable pageable) {
+    public Page<RoleIn> candidateRolesForUnassign(long userId, Pageable pageable) {
         UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
         List<RoleIn> userRoles = userEntity.getRoles().stream().
-                map(r -> new RoleIn(r.getName(), r.getResourceId())).toList();
+                map(r -> new RoleIn(r.getName(), r.getRoleResource())).toList();
         TokenAuthentication tokenAuthentication = (TokenAuthentication)
                 SecurityContextHolder.getContext().getAuthentication();
 
         Set<RoleIn> result = new HashSet<>();
         for (RoleIn userRole : userRoles) {
-            if (checkRole(RoleName.valueOf(userRole.getName()), userRole.getResourceId(), tokenAuthentication, UNASSIGN)) {
+            if (checkRole(RoleName.valueOf(userRole.getName()), userRole.getRoleResource(), tokenAuthentication, UNASSIGN)) {
                 result.add(userRole);
             }
         }
@@ -153,7 +154,7 @@ public class UserRoleService {
         RoleName roleName = RoleName.valueOf(role.getName());
         return Arrays.stream(RoleName.values()).
                 filter(r -> roleName.isResourceIdRequired() == r.isResourceIdRequired() && roleName.getRank() <= r.getRank()).
-                map(e -> new RoleEntity(e.name(), role.getResourceId(), e.getRank())).
+                map(e -> new RoleEntity(e.name(), role.getRoleResource(), e.getRank())).
                 toList();
     }
 
@@ -176,23 +177,23 @@ public class UserRoleService {
         return currentRole -> {
             RoleName roleName = RoleName.valueOf(revoking.getName());
             boolean nonResourceRoleMatch = currentRole.getResourceId() == null &&
-                    revoking.getResourceId() == null &&
+                    revoking.getRoleResource() == null &&
                     revoking.getName().equals(currentRole.getName());
-            boolean resourceRoleMath = currentRole.getResourceId() != null &&
-                    currentRole.getResourceId().equals(revoking.getResourceId()) &&
+            boolean resourceRoleMath = currentRole.getRoleResource() != null &&
+                    currentRole.getRoleResource().equals(revoking.getRoleResource()) &&
                     (roleName.getRank() >= currentRole.getRank());
             return nonResourceRoleMatch || resourceRoleMath;
         };
     }
 
     private boolean checkRole(RoleName roleName,
-                              Long resourceId,
+                              RoleResource roleResource,
                               TokenAuthentication tokenAuthentication,
                               RoleRestrictionRules.RoleAction roleAction) {
         try {
             RoleIn roleIn = RoleIn.builder().
                     name(roleName.name()).
-                    resourceId(resourceId).
+                    roleResource(roleResource).
                     build();
             roleRestrictionRules.assertAllowedActionWithRole(roleIn, tokenAuthentication, roleAction);
             return true;

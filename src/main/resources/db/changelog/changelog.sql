@@ -24,17 +24,19 @@ CREATE TABLE user_account
 
 ALTER TABLE user_account ADD CONSTRAINT uc_user_account_nick_name UNIQUE (nick_name);
 ALTER TABLE user_account ADD CONSTRAINT uc_user_account_email UNIQUE (email);
+CREATE INDEX user_account_last_login_idx ON user_account (last_login);
 
 CREATE TABLE role
 (
-    id          BIGINT generated always as identity,
-    name        VARCHAR(25) NOT NULL,
-    resource_id BIGINT,
-    rank        BIGINT NOT NULL,
+    id            BIGINT generated always as identity,
+    name          VARCHAR(25) NOT NULL,
+    resource_name VARCHAR(50),
+    resource_id   VARCHAR(50),
+    rank          BIGINT NOT NULL,
     CONSTRAINT pk_role PRIMARY KEY (id)
 );
 
-ALTER TABLE role ADD CONSTRAINT uc_role_name_resourceId UNIQUE (name, resource_id);
+ALTER TABLE role ADD CONSTRAINT uc_role_name_resourceId UNIQUE (name, resource_name, resource_id);
 
 CREATE TABLE users_roles
 (
@@ -57,6 +59,8 @@ CREATE TABLE access_token
 
 ALTER TABLE access_token ADD CONSTRAINT uc_access_token_token UNIQUE (token);
 ALTER TABLE access_token ADD CONSTRAINT fk_access_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+CREATE INDEX access_token_user_id_idx ON access_token (user_id);
+CREATE INDEX access_token_expiry_date_idx ON access_token (expiry_date);
 
 CREATE TABLE password_token
 (
@@ -69,6 +73,8 @@ CREATE TABLE password_token
 
 ALTER TABLE password_token ADD CONSTRAINT uc_password_token_token UNIQUE (token);
 ALTER TABLE password_token ADD CONSTRAINT fk_password_token_on_user FOREIGN KEY (user_id) REFERENCES user_account (id);
+CREATE INDEX password_token_user_id_idx ON password_token (user_id);
+CREATE INDEX password_token_expiry_time_idx ON password_token (expiry_time);
 
 CREATE TABLE registration_token
 (
@@ -80,3 +86,5 @@ CREATE TABLE registration_token
 );
 
 ALTER TABLE registration_token ADD CONSTRAINT uc_registration_token_token UNIQUE (token);
+CREATE INDEX registration_token_email_idx ON registration_token (email);
+CREATE INDEX registration_token_expiry_time_idx ON registration_token (expiry_time);

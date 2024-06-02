@@ -44,7 +44,7 @@ public class AccessTokenService {
     private Function<RoleEntity, GrantedAuthority> getAuthorityFunction() {
         return r -> (GrantedAuthority) () -> {
             if (r.getResourceId() != null) {
-                return r.getName() + ":" + r.getResourceId();
+                return r.getName() + ":" + r.getResourceName() + ":" + r.getResourceId();
             } else {
                 return r.getName();
             }

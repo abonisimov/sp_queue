@@ -1,11 +1,13 @@
 package net.alex.game.queue.config.security;
 
+import net.alex.game.model.Universe;
 import net.alex.game.queue.AbstractUserTest;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.model.out.RoleOut;
 import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.RoleName;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,47 +56,55 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
 
     @Test
     void assertAllowedToAssignRoles() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Universe.class.getSimpleName()).id("2").build();
         assertNoExceptionToAssignRoles(roles(role(ROOT)), roles(role(ADMIN)));
         assertNoExceptionToAssignRoles(roles(role(ADMIN)), roles(role(ADMIN)));
-        assertNoExceptionToAssignRoles(roles(role(ADMIN), role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertNoExceptionToAssignRoles(roles(role(OWNER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
-        assertNoExceptionToAssignRoles(roles(role(MEMBER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+        assertNoExceptionToAssignRoles(roles(role(ADMIN), role(OWNER, roleResource1)), roles(role(MEMBER, roleResource2)));
+        assertNoExceptionToAssignRoles(roles(role(OWNER, roleResource1), role(OWNER, roleResource2)), roles(role(MEMBER, roleResource1)));
+        assertNoExceptionToAssignRoles(roles(role(MEMBER, roleResource1), role(OWNER, roleResource2)), roles(role(MEMBER, roleResource1)));
     }
 
     @Test
     void assertAllowedToAssignRoles_invalid() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Universe.class.getSimpleName()).id("2").build();
         assertAccessRestrictedExceptionToAssignRoles(roles(role(ADMIN)), roles(role(ROOT)));
         assertAccessRestrictedExceptionToAssignRoles(roles(role(USER)), roles(role(ROOT)));
-        assertAccessRestrictedExceptionToAssignRoles(roles(role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionToAssignRoles(roles(role(USER)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, 1L)), roles(role(OWNER, 1L)));
-        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(OWNER, roleResource1)), roles(role(MEMBER, roleResource2)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(USER)), roles(role(MEMBER, roleResource2)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, roleResource1)), roles(role(OWNER, roleResource1)));
+        assertAccessRestrictedExceptionToAssignRoles(roles(role(MEMBER, roleResource1), role(WATCHER, roleResource1)), roles(role(OWNER, roleResource1)));
     }
 
     @Test
     void assertAllowedToUnassignRoles() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Universe.class.getSimpleName()).id("2").build();
         assertNoExceptionToUnassignRoles(roles(role(ROOT)), roles(role(ADMIN)));
-        assertNoExceptionToUnassignRoles(roles(role(ADMIN), role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertNoExceptionToUnassignRoles(roles(role(OWNER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
-        assertNoExceptionToUnassignRoles(roles(role(MEMBER, 1L), role(OWNER, 2L)), roles(role(MEMBER, 1L)));
+        assertNoExceptionToUnassignRoles(roles(role(ADMIN), role(OWNER, roleResource1)), roles(role(MEMBER, roleResource2)));
+        assertNoExceptionToUnassignRoles(roles(role(OWNER, roleResource1), role(OWNER, roleResource2)), roles(role(MEMBER, roleResource1)));
+        assertNoExceptionToUnassignRoles(roles(role(MEMBER, roleResource1), role(OWNER, roleResource2)), roles(role(MEMBER, roleResource1)));
     }
 
     @Test
     void assertAllowedToUnassignRoles_invalid() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Universe.class.getSimpleName()).id("2").build();
         assertAccessRestrictedExceptionToUnassignRoles(roles(role(ADMIN)), roles(role(ROOT)));
         assertAccessRestrictedExceptionToUnassignRoles(roles(role(ADMIN)), roles(role(ADMIN)));
         assertAccessRestrictedExceptionToUnassignRoles(roles(role(USER)), roles(role(ROOT)));
-        assertAccessRestrictedExceptionToUnassignRoles(roles(role(OWNER, 1L)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionToUnassignRoles(roles(role(USER)), roles(role(MEMBER, 2L)));
-        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, 1L)), roles(role(OWNER, 1L)));
-        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, 1L), role(WATCHER, 1L)), roles(role(OWNER, 1L)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(OWNER, roleResource1)), roles(role(MEMBER, roleResource2)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(USER)), roles(role(MEMBER, roleResource2)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, roleResource1)), roles(role(OWNER, roleResource1)));
+        assertAccessRestrictedExceptionToUnassignRoles(roles(role(MEMBER, roleResource1), role(WATCHER, roleResource1)), roles(role(OWNER, roleResource1)));
     }
 
     private RoleEntity toRoleEntity(RoleOut roleOut) {
         RoleEntity roleEntity = new RoleEntity();
         roleEntity.setName(roleOut.getName());
         roleEntity.setRank(roleOut.getRank());
-        roleEntity.setResourceId(roleOut.getResourceId());
+        roleEntity.setRoleResource(roleOut.getRoleResource());
         return roleEntity;
     }
 
@@ -134,7 +144,7 @@ class RoleRestrictionRulesTest extends AbstractUserTest {
         return role(roleName, null);
     }
 
-    private RoleIn role(RoleName roleName, Long resourceId) {
-        return new RoleIn(roleName.name(), resourceId);
+    private RoleIn role(RoleName roleName, RoleResource roleResource) {
+        return new RoleIn(roleName.name(), roleResource);
     }
 }

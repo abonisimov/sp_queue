@@ -11,8 +11,8 @@ public class RoleValidator implements ConstraintValidator<ValidRole, RoleIn> {
     public boolean isValid(RoleIn roleIn, ConstraintValidatorContext context) {
         try {
             RoleName roleName = RoleName.valueOf(roleIn.getName());
-            return (!roleName.isResourceIdRequired() || roleIn.getResourceId() != null) &&
-                    (roleName.isResourceIdRequired() || roleIn.getResourceId() == null);
+            return (!roleName.isResourceIdRequired() || roleIn.getRoleResource() != null) &&
+                    (roleName.isResourceIdRequired() || roleIn.getRoleResource() == null);
         } catch (Exception e) {
             return false;
         }

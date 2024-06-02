@@ -133,11 +133,11 @@ public class UserRoleController {
                     )
             })
     @GetMapping(value ="/users/{userId}/roles/assign/candidates", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Page<RoleIn> assignRoleCandidates(@Parameter(description = "User id")
+    public Page<RoleIn> candidateRolesForAssign(@Parameter(description = "User id")
                                              @PathVariable(value = "userId") long userId,
-                                             @SortDefault(sort = "rank", direction = Sort.Direction.DESC)
+                                                @SortDefault(sort = "rank", direction = Sort.Direction.DESC)
                                              @PageableDefault @ParameterObject Pageable pageable) {
-        return userRoleService.assignRolesCandidates(userId, pageable);
+        return userRoleService.candidateRolesForAssign(userId, pageable);
     }
 
     @Operation(summary = "The list of roles this account is able to unassign for given user",
@@ -168,17 +168,17 @@ public class UserRoleController {
                     )
             })
     @GetMapping(value ="/users/{userId}/roles/unassign/candidates", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Page<RoleIn> unassignRoleCandidates(@Parameter(description = "User id")
+    public Page<RoleIn> candidateRolesForUnassign(@Parameter(description = "User id")
                                                @PathVariable(value = "userId") long userId,
-                                               @SortDefault(sort = "rank", direction = Sort.Direction.DESC)
+                                                  @SortDefault(sort = "rank", direction = Sort.Direction.DESC)
                                                @PageableDefault @ParameterObject Pageable pageable) {
-        return userRoleService.unassignRolesCandidates(userId, pageable);
+        return userRoleService.candidateRolesForUnassign(userId, pageable);
     }
 
     @Operation(summary = "Request ROOT access in empty system if there is only one user with one USER role",
             tags = {"user", "role"},
             method = "GET",
-            security = @SecurityRequirement(name = "api_key", scopes = { "ALL" }),
+            security = @SecurityRequirement(name = "api_key", scopes = { "USER" }),
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Success",

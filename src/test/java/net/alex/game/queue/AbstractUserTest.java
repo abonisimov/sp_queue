@@ -5,6 +5,7 @@ import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.model.in.UserPasswordIn;
 import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.RoleName;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.*;
 import net.alex.game.queue.persistence.repo.*;
 import net.alex.game.queue.service.UserService;
@@ -64,15 +65,17 @@ public abstract class AbstractUserTest {
                 .build();
     }
 
-    public RoleEntity getRole(RoleName roleName, Optional<Long> resourceId) {
+    public RoleEntity getRole(RoleName roleName, Optional<RoleResource> optionalRoleResource) {
         Optional<RoleEntity> optionalRole;
-        if (resourceId.isPresent()) {
-            optionalRole = roleRepo.findByNameAndResourceId(roleName.name(), resourceId.get());
+        if (optionalRoleResource.isPresent()) {
+            RoleResource roleResource = optionalRoleResource.get();
+            optionalRole = roleRepo.findByNameAndResourceNameAndResourceId(
+                    roleName.name(), roleResource.getName(), roleResource.getId());
         } else {
             optionalRole = roleRepo.findByName(roleName.name());
         }
         return optionalRole.orElseGet(() -> roleRepo.
-                save(new RoleEntity(roleName.name(), resourceId.orElse(null), roleName.getRank())));
+                save(new RoleEntity(roleName.name(), optionalRoleResource.orElse(null), roleName.getRank())));
     }
 
     public UserOut registerUser() {
@@ -106,22 +109,29 @@ public abstract class AbstractUserTest {
     }
 
     public String createTokenWithRole(RoleName roleName,
-                                      Optional<Long> resourceId) {
+                                      Optional<RoleResource> roleResource) {
         UserOut userOut = registerUser();
-        return createTokenWithRoleForUser(userOut, roleName, resourceId);
+        return createTokenWithRoleForUser(userOut, roleName, roleResource);
+    }
+
+    public String createTokenWithRole(RoleIn role) {
+        UserOut userOut = registerUser();
+        return createTokenWithRoleForUser(userOut,
+                RoleName.valueOf(role.getName()),
+                Optional.ofNullable(role.getRoleResource()));
     }
 
     public String createTokenWithRole(String nickName,
                                       String email,
                                       RoleName roleName,
-                                      Optional<Long> resourceId) {
+                                      Optional<RoleResource> roleResource) {
         UserOut userOut = registerUniqueUser(email, nickName);
-        return createTokenWithRoleForUser(userOut, roleName, resourceId);
+        return createTokenWithRoleForUser(userOut, roleName, roleResource);
     }
 
-    private String createTokenWithRoleForUser(UserOut userOut, RoleName roleName, Optional<Long> resourceId) {
+    private String createTokenWithRoleForUser(UserOut userOut, RoleName roleName, Optional<RoleResource> roleResource) {
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
-        createOrRetrieveRoleForUser(userOut, roleName, resourceId);
+        createOrRetrieveRoleForUser(userOut, roleName, roleResource);
         return accessTokenRepo.findByUser(userEntity).orElseThrow().getToken();
     }
 
@@ -129,9 +139,9 @@ public abstract class AbstractUserTest {
         return createOrRetrieveRoleForUser(userOut, roleName, Optional.empty());
     }
 
-    public UserOut createOrRetrieveRoleForUser(UserOut userOut, RoleName roleName, Optional<Long> resourceId) {
+    public UserOut createOrRetrieveRoleForUser(UserOut userOut, RoleName roleName, Optional<RoleResource> roleResource) {
         UserEntity userEntity = userRepo.findById(userOut.getId()).orElseThrow();
-        RoleEntity roleEntity = getRole(roleName, resourceId);
+        RoleEntity roleEntity = getRole(roleName, roleResource);
 
         if (userEntity.getRoles().stream().noneMatch(r -> r.equals(roleEntity))) {
             userEntity.getRoles().add(roleEntity);
@@ -193,7 +203,7 @@ public abstract class AbstractUserTest {
         UserOut target = registerUser();
 
         for (RoleIn roleIn : targetRoles) {
-            target = createOrRetrieveRoleForUser(target, RoleName.valueOf(roleIn.getName()), Optional.ofNullable(roleIn.getResourceId()));
+            target = createOrRetrieveRoleForUser(target, RoleName.valueOf(roleIn.getName()), Optional.ofNullable(roleIn.getRoleResource()));
         }
 
         String token;
@@ -201,13 +211,13 @@ public abstract class AbstractUserTest {
             token = accessTokenRepo.findByUser(userRepo.findById(target.getId()).orElseThrow()).orElseThrow().getToken();
         } else {
             token = createTokenWithRole(target.getNickName() + "x", target.getEmail() + "x",
-                    RoleName.valueOf(principalRoles.get(0).getName()), Optional.ofNullable(principalRoles.get(0).getResourceId()));
+                    RoleName.valueOf(principalRoles.get(0).getName()), Optional.ofNullable(principalRoles.get(0).getRoleResource()));
             if (principalRoles.size() > 1) {
                 UserOut principal = UserOut.fromUserEntity(accessTokenRepo.findByToken(token).orElseThrow().getUser());
                 for (int i = 1; i < principalRoles.size(); i++) {
                     RoleIn roleIn = principalRoles.get(i);
                     createOrRetrieveRoleForUser(principal, RoleName.valueOf(roleIn.getName()),
-                            Optional.ofNullable(roleIn.getResourceId()));
+                            Optional.ofNullable(roleIn.getRoleResource()));
                 }
             }
         }

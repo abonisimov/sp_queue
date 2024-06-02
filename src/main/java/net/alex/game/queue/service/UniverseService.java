@@ -1,8 +1,9 @@
 package net.alex.game.queue.service;
 
 import lombok.extern.slf4j.Slf4j;
-import net.alex.game.model.Colony;
+import net.alex.game.model.ColonyDescription;
 import net.alex.game.model.Universe;
+import net.alex.game.model.UniverseDescription;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class UniverseService {
 
-    public Page<Colony> getColoniesList(String universeId, Pageable pageable) {
+    public Page<ColonyDescription> getColoniesList(String universeId, Pageable pageable) {
         return Page.empty(); //todo: implement
     }
 
@@ -35,7 +36,7 @@ public class UniverseService {
         return null; //todo: implement
     }
 
-    public Page<Universe> getUniversesList(Pageable pageable) {
+    public Page<UniverseDescription> getUniversesList(Pageable pageable) {
         return Page.empty(); //todo: implement
     }
 }
