@@ -1,10 +1,12 @@
 package net.alex.game.queue.service;
 
 import jakarta.transaction.Transactional;
+import net.alex.game.queue.config.security.PrincipalData;
 import net.alex.game.queue.config.security.RoleRestrictionRules;
 import net.alex.game.queue.config.security.TokenAuthentication;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.exception.ResourceNotFoundException;
+import net.alex.game.queue.exception.RootRequestDeclinedException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.persistence.RoleName;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -22,6 +24,8 @@ import java.util.function.Predicate;
 
 import static net.alex.game.queue.config.security.RoleRestrictionRules.RoleAction.ASSIGN;
 import static net.alex.game.queue.config.security.RoleRestrictionRules.RoleAction.UNASSIGN;
+import static net.alex.game.queue.persistence.RoleName.ADMIN;
+import static net.alex.game.queue.persistence.RoleName.ROOT;
 
 @Service
 public class UserRoleService {
@@ -101,6 +105,27 @@ public class UserRoleService {
         }
 
         return new PageImpl<>(result.stream().toList(), pageable, result.size());
+    }
+
+    @Transactional
+    public void requestRoot() {
+        TokenAuthentication tokenAuthentication = (TokenAuthentication)
+                SecurityContextHolder.getContext().getAuthentication();
+        long userId = ((PrincipalData)tokenAuthentication.getPrincipal()).getUserId();
+        UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        Set<RoleEntity> userRoles = userEntity.getRoles();
+        if (userRepo.count() > 1 || userRoles.size() > 1) {
+            throw new RootRequestDeclinedException();
+        } else {
+            RoleEntity adminRole = new RoleEntity(ADMIN.name(), null, ADMIN.getRank());
+            RoleEntity rootRole = new RoleEntity(ROOT.name(), null, ROOT.getRank());
+            roleRepo.save(adminRole);
+            roleRepo.save(rootRole);
+            userRoles.add(adminRole);
+            userRoles.add(rootRole);
+            userEntity.setRoles(userRoles);
+            userRepo.save(userEntity);
+        }
     }
 
     private Set<RoleEntity> mergeRoles(List<RoleIn> claiming, Set<RoleEntity> current) {
