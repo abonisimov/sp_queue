@@ -182,8 +182,7 @@ public class UserRoleController {
             responses = {
                     @ApiResponse(responseCode = "200",
                             description = "Success",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    array = @ArraySchema(schema = @Schema(implementation = RoleIn.class)))
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
                     ),
                     @ApiResponse(responseCode = "400",
                             description = "Invalid or empty incoming roles list",

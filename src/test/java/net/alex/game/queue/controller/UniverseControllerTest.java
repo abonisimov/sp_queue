@@ -11,8 +11,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -34,7 +32,7 @@ class UniverseControllerTest {
 
     @Test
     void getColoniesList() throws Exception {
-        doReturn(Collections.emptyList()).when(service).getColoniesList(anyString());
+        doReturn(null).when(service).getColoniesList(anyString(), any());
         mockMvc.perform(get("/v1/api/game/universes/1/colonies").contentType(MediaType.APPLICATION_JSON)).
                 andDo(print()).
                 andExpect(status().isOk());
@@ -86,7 +84,7 @@ class UniverseControllerTest {
 
     @Test
     void getUniverseList() throws Exception {
-        doReturn(Collections.emptyList()).when(service).getUniversesList();
+        doReturn(null).when(service).getUniversesList(any());
         mockMvc.perform(get("/v1/api/game/universes").contentType(MediaType.APPLICATION_JSON)).
                 andDo(print()).
                 andExpect(status().isOk());

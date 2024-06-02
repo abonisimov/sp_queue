@@ -10,10 +10,14 @@ import jakarta.validation.Valid;
 import net.alex.game.model.Colony;
 import net.alex.game.model.Universe;
 import net.alex.game.queue.service.UniverseService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.SortDefault;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping(path = "/v1/api/game")
@@ -36,9 +40,11 @@ public class UniverseController {
                     )
             })
     @GetMapping(value = "/universes/{universeId}/colonies", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<Colony> getColoniesList(@Parameter(description = "Universe id")
-                                        @PathVariable(value = "universeId") String universeId) {
-        return universeService.getColoniesList(universeId);
+    public Page<Colony> getColoniesList(@Parameter(description = "Universe id")
+                                        @PathVariable(value = "universeId") String universeId,
+                                        @SortDefault(sort = "id", direction = Sort.Direction.DESC)
+                                        @PageableDefault @ParameterObject Pageable pageable) {
+        return universeService.getColoniesList(universeId, pageable);
     }
 
     @Operation(summary = "Create new universe",
@@ -76,7 +82,7 @@ public class UniverseController {
             })
     @DeleteMapping(value = "/universes/{universeId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public void deleteUniverse(@Parameter(description = "Universe id")
-                             @PathVariable(value = "universeId") String universeId) {
+                               @PathVariable(value = "universeId") String universeId) {
         universeService.deleteUniverse(universeId);
     }
 
@@ -149,7 +155,8 @@ public class UniverseController {
                     )
             })
     @GetMapping(value = "/universes", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<Universe> getUniversesList() {
-        return universeService.getUniversesList();
+    public Page<Universe> getUniversesList(@SortDefault(sort = "id", direction = Sort.Direction.DESC)
+                                           @PageableDefault @ParameterObject Pageable pageable) {
+        return universeService.getUniversesList(pageable);
     }
 }
