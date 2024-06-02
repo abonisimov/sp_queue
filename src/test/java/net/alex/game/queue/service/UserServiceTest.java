@@ -7,6 +7,7 @@ import net.alex.game.queue.exception.*;
 import net.alex.game.queue.model.UserStatus;
 import net.alex.game.queue.model.in.*;
 import net.alex.game.queue.model.out.UserOut;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.AccessTokenEntity;
 import net.alex.game.queue.persistence.entity.PasswordTokenEntity;
 import net.alex.game.queue.persistence.entity.RoleEntity;
@@ -487,14 +488,15 @@ class UserServiceTest extends AbstractUserTest {
 
     @Test
     void getRole() {
-        RoleEntity roleEntity = getRole(OWNER, Optional.of(10L));
+        RoleEntity roleEntity = getRole(OWNER, Optional.of(RoleResource.builder().name("u").id("10").build()));
         assertNotNull(roleEntity);
         assertNotNull(roleEntity.getId());
         assertEquals(OWNER.name(), roleEntity.getName());
-        assertEquals(Long.valueOf(10L), roleEntity.getResourceId());
+        assertEquals("10", roleEntity.getResourceId());
+        assertEquals("u", roleEntity.getResourceName());
         assertEquals(OWNER.getRank(), roleEntity.getRank());
 
-        RoleEntity roleEntity2 = getRole(OWNER, Optional.of(10L));
+        RoleEntity roleEntity2 = getRole(OWNER, Optional.of(RoleResource.builder().name("u").id("10").build()));
         assertNotNull(roleEntity2);
         assertEquals(roleEntity, roleEntity2);
     }

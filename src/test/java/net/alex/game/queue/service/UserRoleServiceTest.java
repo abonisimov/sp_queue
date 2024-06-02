@@ -1,5 +1,7 @@
 package net.alex.game.queue.service;
 
+import net.alex.game.model.Colony;
+import net.alex.game.model.Universe;
 import net.alex.game.queue.AbstractUserTest;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.exception.ResourceNotFoundException;
@@ -7,6 +9,7 @@ import net.alex.game.queue.exception.RootRequestDeclinedException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.model.out.UserOut;
 import net.alex.game.queue.persistence.RoleName;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import net.alex.game.queue.persistence.entity.UserEntity;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,9 +41,12 @@ class UserRoleServiceTest extends AbstractUserTest {
 
     @Test
     void assignRoles() {
-        List<RoleIn> currentUserRoles = Stream.of(new RoleIn(MEMBER.name(), 10L), new RoleIn(WATCHER.name(), 11L)).toList();
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Colony.class.getSimpleName()).id("2").build();
+
+        List<RoleIn> currentUserRoles = Stream.of(new RoleIn(MEMBER.name(), roleResource1), new RoleIn(WATCHER.name(), roleResource2)).toList();
         List<RoleIn> adminRoles = Collections.singletonList(new RoleIn(ROOT.name(), null));
-        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), 10L)).toList();
+        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), roleResource1)).toList();
 
         UserOut userOut = createTargetAndPrincipalWithRoles(currentUserRoles, adminRoles);
         Set<RoleEntity> rolesBefore = userRepo.findById(userOut.getId()).orElseThrow().getRoles();
@@ -51,12 +57,12 @@ class UserRoleServiceTest extends AbstractUserTest {
         assertNotNull(rolesAfter);
         assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(ROOT.name())));
         assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(ADMIN.name())));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 10L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 10L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10L));
-        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11L));
-        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11L));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)));
         assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(USER.name())));
         assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(SYSTEM.name())));
 
@@ -78,13 +84,15 @@ class UserRoleServiceTest extends AbstractUserTest {
 
     @Test
     void assignRoles_invalidUser() {
-        List<RoleIn> roles = Collections.singletonList(new RoleIn(MEMBER.name(), 10L));
+        RoleResource roleResource = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        List<RoleIn> roles = Collections.singletonList(new RoleIn(MEMBER.name(), roleResource));
         assertThrows(ResourceNotFoundException.class, () -> userRoleService.assignRoles(1, roles));
     }
 
     @Test
     void assignRoles_invalidRoles() {
-        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), 10L)).toList();
+        RoleResource roleResource = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), roleResource)).toList();
         UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN);
         long userId = userOut.getId();
         assertThrows(AccessRestrictedException.class, () -> userRoleService.assignRoles(userId, rolesToAssign));
@@ -92,16 +100,19 @@ class UserRoleServiceTest extends AbstractUserTest {
 
     @Test
     void unassignRoles() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Colony.class.getSimpleName()).id("2").build();
+
         List<RoleIn> currentUserRoles = Stream.of(
-                        new RoleIn(WATCHER.name(), 10L),
-                        new RoleIn(MEMBER.name(), 10L),
-                        new RoleIn(OWNER.name(), 10L),
-                        new RoleIn(WATCHER.name(), 11L),
-                        new RoleIn(MEMBER.name(), 11L),
-                        new RoleIn(OWNER.name(), 11L)).
+                        new RoleIn(WATCHER.name(), roleResource1),
+                        new RoleIn(MEMBER.name(), roleResource1),
+                        new RoleIn(OWNER.name(), roleResource1),
+                        new RoleIn(WATCHER.name(), roleResource2),
+                        new RoleIn(MEMBER.name(), roleResource2),
+                        new RoleIn(OWNER.name(), roleResource2)).
                 toList();
         List<RoleIn> adminRoles = Collections.singletonList(new RoleIn(ROOT.name(), null));
-        List<RoleIn> rolesToUnassign = Collections.singletonList(new RoleIn(MEMBER.name(), 10L));
+        List<RoleIn> rolesToUnassign = Collections.singletonList(new RoleIn(MEMBER.name(), roleResource1));
 
         UserOut userOut = createTargetAndPrincipalWithRoles(currentUserRoles, adminRoles);
         Set<RoleEntity> rolesBefore = userRepo.findById(userOut.getId()).orElseThrow().getRoles();
@@ -112,36 +123,36 @@ class UserRoleServiceTest extends AbstractUserTest {
         assertNotNull(rolesAfter);
         assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(ROOT.name())));
         assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(ADMIN.name())));
-        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 10L));
-        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 10L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11L));
-        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11L));
+        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)));
         assertTrue(rolesAfter.stream().anyMatch(r -> r.getName().equals(USER.name())));
         assertFalse(rolesAfter.stream().anyMatch(r -> r.getName().equals(SYSTEM.name())));
 
-        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10).count());
-        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11).count());
-        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11).count());
-        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11).count());
+        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)).count());
+        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)).count());
+        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)).count());
+        assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)).count());
         assertEquals(1, rolesAfter.stream().filter(r -> r.getName().equals(USER.name())).count());
 
         assertEquals(
-                rolesBefore.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10).findAny().orElseThrow().getId(),
-                rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10).findAny().orElseThrow().getId());
+                rolesBefore.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)).findAny().orElseThrow().getId(),
+                rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)).findAny().orElseThrow().getId());
 
         assertEquals(
-                rolesBefore.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId(),
-                rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId());
+                rolesBefore.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId(),
+                rolesAfter.stream().filter(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId());
 
         assertEquals(
-                rolesBefore.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId(),
-                rolesAfter.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId());
+                rolesBefore.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId(),
+                rolesAfter.stream().filter(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId());
 
         assertEquals(
-                rolesBefore.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId(),
-                rolesAfter.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11).findAny().orElseThrow().getId());
+                rolesBefore.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId(),
+                rolesAfter.stream().filter(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)).findAny().orElseThrow().getId());
 
         assertEquals(
                 rolesBefore.stream().filter(r -> r.getName().equals(USER.name())).findAny().orElseThrow().getId(),
@@ -150,69 +161,77 @@ class UserRoleServiceTest extends AbstractUserTest {
 
     @Test
     void unassignRoles_invalidUser() {
-        List<RoleIn> roles = Collections.singletonList(new RoleIn(MEMBER.name(), 10L));
+        RoleResource roleResource = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        List<RoleIn> roles = Collections.singletonList(new RoleIn(MEMBER.name(), roleResource));
         assertThrows(ResourceNotFoundException.class, () -> userRoleService.unassignRoles(1, roles));
     }
 
     @Test
     void unassignRoles_invalidRoles() {
-        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), 10L)).toList();
+        RoleResource roleResource = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        List<RoleIn> rolesToAssign = Stream.of(new RoleIn(ROOT.name(), null), new RoleIn(OWNER.name(), roleResource)).toList();
         UserOut userOut = createTargetAndPrincipalWithRoles(ADMIN);
         long userId = userOut.getId();
         assertThrows(AccessRestrictedException.class, () -> userRoleService.unassignRoles(userId, rolesToAssign));
     }
 
     @Test
-    void assignRolesCandidates() {
+    void candidateRolesForAssign() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("10").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Colony.class.getSimpleName()).id("11").build();
+
         List<RoleIn> currentUserRoles = Stream.of(
-                new RoleIn(MEMBER.name(), 10L),
-                new RoleIn(WATCHER.name(), 11L)).
+                new RoleIn(MEMBER.name(), roleResource1),
+                new RoleIn(WATCHER.name(), roleResource2)).
                 toList();
 
         List<RoleIn> adminRoles = Collections.singletonList(new RoleIn(ROOT.name(), null));
         UserOut userOut = createTargetAndPrincipalWithRoles(currentUserRoles, adminRoles);
 
-        Page<RoleIn> result = userRoleService.assignRolesCandidates(userOut.getId(), Pageable.ofSize(10));
+        Page<RoleIn> result = userRoleService.candidateRolesForAssign(userOut.getId(), Pageable.ofSize(10));
         assertNotNull(result);
         assertEquals(6, result.getTotalElements());
 
         assertTrue(result.stream().anyMatch(r -> r.getName().equals(ROOT.name())));
         assertTrue(result.stream().anyMatch(r -> r.getName().equals(ADMIN.name())));
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 11L));
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getResourceId() == 10L));
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 11L));
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 10L));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(OWNER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource2)));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource1)));
     }
 
     @Test
-    void unassignRolesCandidates() {
+    void candidateRolesForUnassign() {
+        RoleResource roleResource1 = RoleResource.builder().name(Universe.class.getSimpleName()).id("1").build();
+        RoleResource roleResource2 = RoleResource.builder().name(Colony.class.getSimpleName()).id("2").build();
+
         List<RoleIn> currentUserRoles = Stream.of(
                         new RoleIn(ROOT.name(), null),
-                        new RoleIn(MEMBER.name(), 10L),
-                        new RoleIn(WATCHER.name(), 11L)).
+                        new RoleIn(MEMBER.name(), roleResource1),
+                        new RoleIn(WATCHER.name(), roleResource2)).
                 toList();
 
         List<RoleIn> adminRoles = Collections.singletonList(new RoleIn(ROOT.name(), null));
         UserOut userOut = createTargetAndPrincipalWithRoles(currentUserRoles, adminRoles);
 
-        Page<RoleIn> result = userRoleService.unassignRolesCandidates(userOut.getId(), Pageable.ofSize(10));
+        Page<RoleIn> result = userRoleService.candidateRolesForUnassign(userOut.getId(), Pageable.ofSize(10));
         assertNotNull(result);
         assertEquals(2, result.getTotalElements());
 
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getResourceId() == 10L));
-        assertTrue(result.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getResourceId() == 11L));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(MEMBER.name()) && r.getRoleResource().equals(roleResource1)));
+        assertTrue(result.stream().anyMatch(r -> r.getName().equals(WATCHER.name()) && r.getRoleResource().equals(roleResource2)));
     }
 
     @Test
-    void assignRolesCandidates_invalidUser() {
+    void candidateRolesForAssign_invalidUser() {
         Pageable pageable = Pageable.ofSize(1);
-        assertThrows(ResourceNotFoundException.class, () -> userRoleService.assignRolesCandidates(-1, pageable));
+        assertThrows(ResourceNotFoundException.class, () -> userRoleService.candidateRolesForAssign(-1, pageable));
     }
 
     @Test
-    void unassignRolesCandidates_invalidUser() {
+    void candidateRolesForUnassign_invalidUser() {
         Pageable pageable = Pageable.ofSize(1);
-        assertThrows(ResourceNotFoundException.class, () -> userRoleService.unassignRolesCandidates(-1, pageable));
+        assertThrows(ResourceNotFoundException.class, () -> userRoleService.candidateRolesForUnassign(-1, pageable));
     }
 
     @Test

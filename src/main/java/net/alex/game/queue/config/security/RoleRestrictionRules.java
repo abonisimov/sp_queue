@@ -5,6 +5,7 @@ import net.alex.game.queue.exception.ResourceNotFoundException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.model.out.RoleOut;
 import net.alex.game.queue.persistence.RoleName;
+import net.alex.game.queue.persistence.RoleResource;
 import net.alex.game.queue.persistence.entity.RoleEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -103,18 +104,19 @@ public class RoleRestrictionRules {
     }
 
     private RoleOut toRoleOut(RoleIn roleIn) {
-        return RoleOut.builder().name(roleIn.getName()).resourceId(roleIn.getResourceId()).
+        return RoleOut.builder().name(roleIn.getName()).roleResource(roleIn.getRoleResource()).
                 rank(RoleName.valueOf(roleIn.getName()).getRank()).build();
     }
 
     private RoleOut toRoleOut(GrantedAuthority a) {
         String[] nameResource = a.getAuthority().split(":");
         String name = nameResource[0];
-        Long resourceId = null;
-        if (nameResource.length > 1 && nameResource[1] != null) {
-            resourceId = Long.valueOf(nameResource[1]);
+        RoleResource roleResource = null;
+        if (nameResource.length > 1 && nameResource[1] != null && nameResource[2] != null) {
+            roleResource = RoleResource.builder().name(nameResource[1]).id(nameResource[2]).build();
         }
-        return RoleOut.builder().name(name).resourceId(resourceId).rank(RoleName.valueOf(name).getRank()).build();
+        return RoleOut.builder().name(name).roleResource(roleResource).
+                rank(RoleName.valueOf(name).getRank()).build();
     }
 
     private boolean isMaxRoleRequiresResource(List<RoleOut> roles) {
@@ -128,8 +130,8 @@ public class RoleRestrictionRules {
     }
 
     private boolean assertAllowedToAssignResourceRole(RoleOut targetRole, RoleOut principalRole) {
-        return targetRole.getResourceId() != null &&
-                targetRole.getResourceId().equals(principalRole.getResourceId());
+        return targetRole.getRoleResource() != null &&
+                targetRole.getRoleResource().equals(principalRole.getRoleResource());
     }
 
     public enum RoleAction {

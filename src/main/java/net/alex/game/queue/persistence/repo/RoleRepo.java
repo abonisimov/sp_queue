@@ -11,9 +11,10 @@ import java.util.Optional;
 
 public interface RoleRepo extends CrudRepository<RoleEntity, Long> {
     Optional<RoleEntity> findByName(String name);
-    Optional<RoleEntity> findByNameAndResourceId(String name, Long resourceId);
+    Optional<RoleEntity> findByNameAndResourceNameAndResourceId(String name, String resourceName, String resourceId);
     Page<RoleEntity> findAll(Pageable pageable);
 
-    @Query(value = "select distinct role.resource_id from role", nativeQuery = true)
-    List<Long> getDistinctResourceId();
+    @Query(value = "select distinct on (role.resource_id, role.resource_name) * from role where " +
+            "role.resource_id is not null and role.resource_name is not null", nativeQuery = true)
+    List<RoleEntity> getDistinctRoleResource();
 }

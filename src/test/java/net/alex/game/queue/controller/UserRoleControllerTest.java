@@ -137,10 +137,10 @@ class UserRoleControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void assignRolesCandidates() throws Exception {
+    void candidateRolesForAssign() throws Exception {
         cleanUserRecords();
         String token = createTokenWithRole(ADMIN);
-        doReturn(null).when(service).assignRolesCandidates(anyLong(), any());
+        doReturn(null).when(service).candidateRolesForAssign(anyLong(), any());
         mockMvc.perform(get("/v1/api/game/users/1/roles/assign/candidates").
                         contentType(MediaType.APPLICATION_JSON).
                         header(AUTH_TOKEN_HEADER_NAME, token)).
@@ -149,10 +149,10 @@ class UserRoleControllerTest extends AbstractUserTest {
     }
 
     @Test
-    void unassignRolesCandidates() throws Exception {
+    void candidateRolesForUnassign() throws Exception {
         cleanUserRecords();
         String token = createTokenWithRole(ADMIN);
-        doReturn(null).when(service).unassignRolesCandidates(anyLong(), any());
+        doReturn(null).when(service).candidateRolesForUnassign(anyLong(), any());
         mockMvc.perform(get("/v1/api/game/users/1/roles/unassign/candidates").
                         contentType(MediaType.APPLICATION_JSON).
                         header(AUTH_TOKEN_HEADER_NAME, token)).
