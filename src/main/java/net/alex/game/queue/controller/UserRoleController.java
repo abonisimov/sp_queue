@@ -18,6 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.SortDefault;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -172,5 +173,34 @@ public class UserRoleController {
                                                @SortDefault(sort = "rank", direction = Sort.Direction.DESC)
                                                @PageableDefault @ParameterObject Pageable pageable) {
         return userRoleService.unassignRolesCandidates(userId, pageable);
+    }
+
+    @Operation(summary = "Request ROOT access in empty system if there is only one user with one USER role",
+            tags = {"user", "role"},
+            method = "GET",
+            security = @SecurityRequirement(name = "api_key", scopes = { "ALL" }),
+            responses = {
+                    @ApiResponse(responseCode = "200",
+                            description = "Success",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    array = @ArraySchema(schema = @Schema(implementation = RoleIn.class)))
+                    ),
+                    @ApiResponse(responseCode = "400",
+                            description = "Invalid or empty incoming roles list",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "401",
+                            description = "Invalid credentials",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "403",
+                            description = "Access denied, account is blocked or action is restricted",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            })
+    @PreAuthorize("hasAuthority('USER')")
+    @GetMapping(value ="/users/roles/request_root", produces = MediaType.APPLICATION_JSON_VALUE)
+    public void requestRoot() {
+        userRoleService.requestRoot();
     }
 }

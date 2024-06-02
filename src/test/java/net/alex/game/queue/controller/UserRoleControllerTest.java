@@ -159,4 +159,16 @@ class UserRoleControllerTest extends AbstractUserTest {
                 andDo(print()).
                 andExpect(status().isOk());
     }
+
+    @Test
+    void requestRoot() throws Exception {
+        cleanUserRecords();
+        String token = createTokenWithRole(ADMIN);
+        doNothing().when(service).requestRoot();
+        mockMvc.perform(get("/v1/api/game/users/roles/request_root").
+                        contentType(MediaType.APPLICATION_JSON).
+                        header(AUTH_TOKEN_HEADER_NAME, token)).
+                andDo(print()).
+                andExpect(status().isOk());
+    }
 }

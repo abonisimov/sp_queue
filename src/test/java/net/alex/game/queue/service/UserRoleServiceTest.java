@@ -3,9 +3,12 @@ package net.alex.game.queue.service;
 import net.alex.game.queue.AbstractUserTest;
 import net.alex.game.queue.exception.AccessRestrictedException;
 import net.alex.game.queue.exception.ResourceNotFoundException;
+import net.alex.game.queue.exception.RootRequestDeclinedException;
 import net.alex.game.queue.model.in.RoleIn;
 import net.alex.game.queue.model.out.UserOut;
+import net.alex.game.queue.persistence.RoleName;
 import net.alex.game.queue.persistence.entity.RoleEntity;
+import net.alex.game.queue.persistence.entity.UserEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static net.alex.game.queue.persistence.RoleName.*;
@@ -209,5 +213,31 @@ class UserRoleServiceTest extends AbstractUserTest {
     void unassignRolesCandidates_invalidUser() {
         Pageable pageable = Pageable.ofSize(1);
         assertThrows(ResourceNotFoundException.class, () -> userRoleService.unassignRolesCandidates(-1, pageable));
+    }
+
+    @Test
+    void requestRoot() {
+        UserOut user = createUserWithRole(USER);
+        userRoleService.requestRoot();
+        assertEquals(1, userRepo.count());
+
+        UserEntity userEntity = userRepo.findById(user.getId()).orElseThrow();
+        assertEquals(Set.of(ROOT, ADMIN, USER), userEntity.getRoles().stream().
+                map(r -> RoleName.valueOf(r.getName())).collect(Collectors.toSet()));
+    }
+
+    @Test
+    void requestRoot_multiple_users() {
+        createTargetAndPrincipalWithRoles(USER, USER);
+        assertThrows(RootRequestDeclinedException.class, () -> userRoleService.requestRoot());
+
+    }
+
+    @Test
+    void requestRoot_multiple_roles() {
+        createTargetAndPrincipalWithRoles(
+                List.of(new RoleIn(USER.name(), null), new RoleIn(ADMIN.name(), null)),
+                Collections.emptyList());
+        assertThrows(RootRequestDeclinedException.class, () -> userRoleService.requestRoot());
     }
 }
