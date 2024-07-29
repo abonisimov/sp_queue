@@ -1,5 +1,3 @@
-version: '4'
-
 services:
   sp_queue_app:
     image: 'sp_queue:latest'

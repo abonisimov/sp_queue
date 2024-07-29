@@ -189,8 +189,10 @@ public class UserService {
 
     @Transactional
     public UserOut changeUser(long userId, UserIn userIn) {
-        assertUniqueNickName(userIn.getNickName());
         UserEntity userEntity = userRepo.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        if (!userEntity.getNickName().equals(userIn.getNickName())) {
+            assertUniqueNickName(userIn.getNickName());
+        }
         userEntity.setFirstName(userIn.getFirstName());
         userEntity.setLastName(userIn.getLastName());
         userEntity.setNickName(userIn.getNickName());

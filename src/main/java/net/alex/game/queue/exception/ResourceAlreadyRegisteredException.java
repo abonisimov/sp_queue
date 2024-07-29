@@ -1,11 +1,13 @@
 package net.alex.game.queue.exception;
 
+import lombok.Getter;
 import net.alex.game.queue.annotation.HttpStatusMapping;
 
 import java.io.Serial;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
 
+@Getter
 @HttpStatusMapping(status = CONFLICT)
 public class ResourceAlreadyRegisteredException extends RuntimeException {
     @Serial
@@ -18,7 +20,4 @@ public class ResourceAlreadyRegisteredException extends RuntimeException {
         this.resource = resource;
     }
 
-    public String getResource() {
-        return resource;
-    }
 }

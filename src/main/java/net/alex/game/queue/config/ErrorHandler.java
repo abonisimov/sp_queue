@@ -5,7 +5,6 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import net.alex.game.queue.annotation.HttpStatusMapping;
 import net.alex.game.queue.exception.ResourceAlreadyRegisteredException;
-import net.alex.game.queue.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -65,7 +64,7 @@ public class ErrorHandler {
                 .body(errorBody);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
+    @ExceptionHandler(ResourceAlreadyRegisteredException.class)
     @ResponseBody
     public ResponseEntity<Map<String, Object>> onError(ResourceAlreadyRegisteredException error) {
         Map<String, Object> errorBody = new HashMap<>();
