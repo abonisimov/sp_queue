@@ -16,6 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -27,6 +28,9 @@ import java.util.Optional;
 import static net.alex.game.queue.config.security.AccessTokenService.AUTH_TOKEN_HEADER_NAME;
 import static net.alex.game.queue.persistence.RoleName.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 
 @SpringBootTest
 class UserServiceTest extends AbstractUserTest {
@@ -36,8 +40,12 @@ class UserServiceTest extends AbstractUserTest {
         cleanUserRecords();
     }
 
+    @SpyBean
+    private MailService mailService;
+
     @Test
     void registerRequest() {
+        doNothing().when(mailService).sendRegistrationMail(anyString(), anyString(), any());
         userService.registerRequest(VALID_EMAIL, Locale.getDefault());
         assertTrue(registrationTokenRepo.findByEmail(VALID_EMAIL).isPresent());
     }
@@ -360,11 +368,12 @@ class UserServiceTest extends AbstractUserTest {
     @Test
     void changeUser_invalid_nickName() {
         UserOut userOut = registerUser();
+        registerUniqueUser(VALID_EMAIL + "x", userOut.getNickName() + "x");
         long userId = userOut.getId();
         UserIn userIn = UserIn.builder()
                 .firstName(NAME)
                 .lastName(LAST_NAME)
-                .nickName(userOut.getNickName())
+                .nickName(userOut.getNickName() + "x")
                 .locale(Locale.getDefault())
                 .build();
 
@@ -412,6 +421,7 @@ class UserServiceTest extends AbstractUserTest {
         String password = userEntity.getPassword();
         String token = tokenEntity.getToken();
 
+        doNothing().when(mailService).sendRestorePasswordMail(any(), anyString());
         userService.restorePasswordRequest(userOut.getEmail());
 
         userEntity = userRepo.findById(userOut.getId()).orElseThrow();

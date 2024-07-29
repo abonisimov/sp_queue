@@ -14,6 +14,10 @@ spring:
     spring.jpa.database-platform: org.hibernate.dialect.H2Dialect
   liquibase:
     change-log: classpath:db/changelog/changelog.sql
+  mail:
+    host: localhost
+    port: 2500
+    protocol: smtp
 
 executor:
   poolSize: 4
@@ -21,3 +25,10 @@ executor:
 
 serializer:
   implementation: InMemoryEventSerializer
+
+mail:
+  from: noreply@domain.com
+  registration:
+    subject: 'Registration on our server'
+  restore:
+    subject: 'Restore password'

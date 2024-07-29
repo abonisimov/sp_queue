@@ -9,9 +9,33 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/changelog.sql
 
+  mail:
+    default-encoding: UTF-8
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: '78702969886632'
+    password: 'f3e87a97dce53f'
+    properties:
+      mail:
+        debug: false
+        smtp:
+          debug: false
+          auth: true
+          starttls:
+            enable: true
+    protocol: smtp
+    test-connection: false
+
 executor:
   poolSize: 10
   loadFactorPrecision: 100
 
 serializer:
   implementation: PostgresqlEventSerializer
+
+mail:
+  from: noreply@domain.com
+  registration:
+    subject: 'Registration on our server'
+  restore:
+    subject: 'Restore password'
